@@ -1,0 +1,29 @@
+[package]
+name = "var_quantity"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+horner = "0.1.2"
+uom = {version = "0.36", default-features = false, features = ["f64", "si", "std"]}
+serde = { version = "1", features = ["derive"], optional = true }
+deserialize_untagged_verbose_error = {version = "^0.1", optional = true }
+typetag = { version = "^0.2", optional = true }
+dyn_quantity = { version = "^0.5.4", features = ["uom"] }
+dyn-clone = "1"
+serde-value = "0.7"
+num = {version = "0.4"}
+
+[features]
+default = []
+serde = ["dep:serde", "dep:typetag", "dep:deserialize_untagged_verbose_error", "uom/serde", "dyn_quantity/serde"]
+from_str = ["dyn_quantity/from_str"]
+
+[dev-dependencies]
+serde_yaml = "0.8"
+approx = "0.5.1"
+indoc = "1.0"
+var_quantity = { path = ".", features = ["from_str", "serde"] }
+
+[package.metadata.docs.rs]
+features = ["serde", "from_str"]
