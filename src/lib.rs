@@ -615,7 +615,7 @@ impl<T: QuantityFunction> ClampedQuantity<T> {
 }
 
 #[cfg(not(feature = "serde"))]
-impl<T: QuantityFunction> QuantityFunction for ClampedQuantity<T> {
+impl<T: QuantityFunction + Clone> QuantityFunction for ClampedQuantity<T> {
     fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(influencing_factors);
     }

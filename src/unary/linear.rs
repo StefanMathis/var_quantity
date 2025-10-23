@@ -7,7 +7,15 @@ use dyn_quantity::{DynQuantity, Unit};
 use crate::{QuantityFunction, filter_unary_function};
 
 /**
-TODO
+A linear function defined via its `slope` and `base_value`:
+
+`y = slope * x + base_value`
+
+This struct is meant to be used as a [`QuantityFunction`] trait object. The
+unit of the influencing quantity is `base_value`.unit / slope.unit`.
+
+# Features:
+This struct can be serialized / deserialized if the `serde` feature is enabled.
 */
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -18,16 +26,14 @@ pub struct Linear {
 
 impl Linear {
     /**
-    TODO
+    Creates a new instance of [`Linear`].
 
-    The linear Siso-function is defined by the following formula:
-
-    `y = slope * x + base_value`
     ```
+    use dyn_quantity::{DynQuantity, PredefUnit, Unit};
+    use var_quantity::{QuantityFunction, unary::Linear};
 
-    // let linear = Linear::new(2.0, 1.0);
-    // assert_eq!(linear.eval(0.0), 1.0);
-    // assert_eq!(linear.eval(1.0), 3.0);
+    let lin = Linear::new(DynQuantity::new(-1.0, PredefUnit::Force), DynQuantity::new(2.0, PredefUnit::Torque));
+    assert_eq!(lin.call(&[DynQuantity::new(5.0, PredefUnit::Length)]), DynQuantity::new(-3.0, PredefUnit::Torque))
     ```
      */
     pub fn new(slope: DynQuantity<f64>, base_value: DynQuantity<f64>) -> Self {
@@ -51,7 +57,7 @@ impl Linear {
     /**
     Returns the unit of the quantity which influences the variable quantity.
     If none of the `influencing_factors` in a [`QuantityFunction::call`]
-    matches this item, then `x` is assumed to be zero and the base value is
+    matches this item, then `x` is assumed to be zero and `base_value` is
     returned.
 
     # Examples
@@ -78,6 +84,26 @@ impl Linear {
     */
     pub fn influencing_factor_unit(&self) -> Unit {
         return self.base_value.unit / self.slope.unit;
+    }
+
+    /**
+    Returns the unit which will be returned from [`QuantityFunction::call`].
+
+    ```
+    use std::str::FromStr;
+    use dyn_quantity::{DynQuantity, PredefUnit, Unit};
+    use var_quantity::{QuantityFunction, unary::Linear};
+
+    let lin = Linear::new(
+        DynQuantity::from_str("0.5 ohm/K").unwrap(),
+        DynQuantity::from_str("1 ohm").unwrap(),
+    );
+
+    assert_eq!(lin.output_unit(), Unit::from(PredefUnit::ElectricResistance));
+    ```
+     */
+    pub fn output_unit(&self) -> Unit {
+        return self.base_value.unit;
     }
 }
 

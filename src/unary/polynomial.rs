@@ -7,9 +7,24 @@ use dyn_quantity::{DynQuantity, Unit, UnitsNotEqual};
 use crate::{QuantityFunction, filter_unary_function};
 
 /**
-TODO
+A polynom defined via its coefficients:
 
-Explain coefficient order -> horner
+`y = ∑ a_n * x^(N - 1 - n)`,
+
+where `N` is the length of the coefficient input vector. For example, the vector
+`[a, b, c, d]` is evaluated as a polynom:
+
+`ax³ + bx² + cx + d`.
+
+This evaluation order is equal to that used in the
+[horner](https://crates.io/crates/horner) crate, which is used in the
+[`QuantityFunction`] call implementation. From that, one finds that the unit of
+the influencing quantity is `d.unit / c.unit`. All other coefficients need
+to match this convention, taking the power of `x` into account. This is checked
+in the constructor [`Polynomial::new`].
+
+# Features:
+This struct can be serialized / deserialized if the `serde` feature is enabled.
  */
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
@@ -25,9 +40,30 @@ pub struct Polynomial {
 
 impl Polynomial {
     /**
-    TODO
+    Checks if the coefficients are consistent with respect to their units
+    If this is the case, a new instance of [`Polynomial`] is returned.
 
-    Explain coefficient order -> horner
+    # Examples
+    ```
+    use dyn_quantity::{DynQuantity, PredefUnit};
+    use var_quantity::{QuantityFunction, unary::Polynomial};
+
+    // An example for a variable "volume" quantity
+    assert!(Polynomial::new(vec![
+        DynQuantity::new(1.0, PredefUnit::None), // Times length^3 = Volume
+        DynQuantity::new(2.0, PredefUnit::Length), // Times length^2 = Volume
+        DynQuantity::new(3.0, PredefUnit::Area), // Times length^1 = Volume
+        DynQuantity::new(4.0, PredefUnit::Volume), // Times length^0 = Volume
+    ]).is_ok());
+
+    // Here is an unit mismatch for the second coefficient
+    assert!(Polynomial::new(vec![
+        DynQuantity::new(1.0, PredefUnit::None), // Times length^3 = Volume
+        DynQuantity::new(2.0, PredefUnit::None), // Times length^2 = Area !!!
+        DynQuantity::new(3.0, PredefUnit::Area), // Times length^1 = Volume
+        DynQuantity::new(4.0, PredefUnit::Volume), // Times length^0 = Volume
+    ]).is_err());
+    ```
     */
     pub fn new(coefficients: Vec<DynQuantity<f64>>) -> Result<Self, UnitsNotEqual> {
         let l = coefficients.len();
@@ -88,7 +124,6 @@ impl Polynomial {
     # Examples
 
     ```
-    use std::str::FromStr;
     use dyn_quantity::{DynQuantity, PredefUnit, Unit};
     use var_quantity::{QuantityFunction, unary::Polynomial};
 
@@ -115,6 +150,27 @@ impl Polynomial {
     */
     pub fn influencing_factor_unit(&self) -> Unit {
         return self.influencing_factor_unit;
+    }
+
+    /**
+    Returns the unit which will be returned from [`QuantityFunction::call`].
+
+    ```
+    use dyn_quantity::{DynQuantity, PredefUnit, Unit};
+    use var_quantity::{QuantityFunction, unary::Polynomial};
+
+    let poly = Polynomial::new(vec![
+        DynQuantity::new(1.0, PredefUnit::None),
+        DynQuantity::new(2.0, PredefUnit::Length),
+        DynQuantity::new(3.0, PredefUnit::Area),
+        DynQuantity::new(4.0, PredefUnit::Volume),
+    ]).expect("units match");
+
+    assert_eq!(poly.output_unit(), Unit::from(PredefUnit::Volume));
+    ```
+     */
+    pub fn output_unit(&self) -> Unit {
+        return self.default_value.unit;
     }
 }
 

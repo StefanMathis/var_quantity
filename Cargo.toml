@@ -2,7 +2,7 @@
 name = "var_quantity"
 version = "0.1.0"
 edition = "2024"
-description = "Provides an interface for defining variable quantities whose value depends on that of other quantities"
+description = "Provides an interface for defining variable quantities whose value depends on that of other quantities."
 readme = "README.md"
 license  = "MIT OR Apache-2.0"
 repository = "https://github.com/StefanMathis/var_quantity.git"

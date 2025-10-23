@@ -20,7 +20,7 @@ pub struct ExpTerm {
 }
 
 /**
-An exponential function composed as a sum of [`ExpTerm`]:
+An exponential function defined as a sum of [`ExpTerm`]:
 
 `y = ∑ a_n * e^(k_n * x)`
 
@@ -172,7 +172,7 @@ impl Exponential {
     }
 
     /**
-    Returns the unit which will be returned from [`DynQuantity::call`].
+    Returns the unit which will be returned from [`QuantityFunction::call`].
 
     ```
     use dyn_quantity::{DynQuantity, PredefUnit, Unit};

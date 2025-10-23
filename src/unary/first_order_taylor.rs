@@ -7,26 +7,37 @@ use dyn_quantity::{DynQuantity, Unit, UnitsNotEqual};
 use crate::{QuantityFunction, filter_unary_function};
 
 /**
-TODO
-
-First order taylor series.
+A first order taylor series function defined as:
 
 `y = base_value * (1 + slope*(x - expansion_point))`
 
-An example would be the linear approximation of the temperature dependency of the electrical resistivity:
+This struct is meant to be used as a [`QuantityFunction`] trait object. The
+unit of the influencing quantity is `expansion_point`.unit`.
+
+# Examples
+
+A real-life example is the linear approximation of the temperature dependency of
+the electrical resistivity:
 
 `rho(T) = rho0 * (1+alpha*(T-T0))`
 
-The quantity defines the physical type of the argument `x`.
+```
+use std::str::FromStr;
+use dyn_quantity::DynQuantity;
+use var_quantity::{QuantityFunction, unary::FirstOrderTaylor};
 
-Since the first order taylor series is just a linear function, a corresponding `From<FirstOrderTaylor> for FirstOrderTaylor` is defined.
+// Matching units
+let fot = FirstOrderTaylor::new(
+    DynQuantity::from_str("2 ohm * m").unwrap(), // rho0
+    DynQuantity::from_str("0.5 ohm * m / K").unwrap(), // alpha
+    DynQuantity::from_str("30 K").unwrap() // T0
+).expect("units match");
 
-Non-matching input -> base value is returned
-
-Example
+assert_eq!(fot.call(&[ DynQuantity::from_str("60 K").unwrap()]).value, 32.0);
 ```
 
-```
+# Features:
+This struct can be serialized / deserialized if the `serde` feature is enabled.
 */
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
@@ -38,8 +49,8 @@ pub struct FirstOrderTaylor {
 
 impl FirstOrderTaylor {
     /**
-    Checks if the amplitudes / exponents of all given terms are identical.
-    If this is the case, a new instance of [`Exponential`] is returned.
+    Checks if `base_value.unit = slope.unit * expansion_point.unit`.
+    If this is the case, a new instance of [`FirstOrderTaylor`] is returned.
 
     # Examples
 
@@ -138,7 +149,7 @@ impl FirstOrderTaylor {
     }
 
     /**
-    Returns the unit which will be returned from [`DynQuantity::call`].
+    Returns the unit which will be returned from [`QuantityFunction::call`].
 
     ```
     use std::str::FromStr;
