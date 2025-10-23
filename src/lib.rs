@@ -1,5 +1,5 @@
 #![doc = include_str!("../README.md")]
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 
 use std::marker::PhantomData;
 
@@ -8,9 +8,6 @@ use dyn_quantity::{DynQuantity, Unit, UnitFromType, UnitsNotEqual};
 use num::Complex;
 #[cfg(feature = "serde")]
 pub use typetag;
-
-#[cfg(feature = "serde")]
-pub use uom;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -197,7 +194,69 @@ impl<T: IsQuantity> FunctionWrapper<T> {
     }
 
     /**
-    TODO
+    Forwards the input to the [`QuantityFunction::call`] method of the wrapped
+    trait object and asserts that the returned value can be converted to `T`.
+    If that is not the case, the constraint outlined in the docstring of
+    [`FunctionWrapper`] is not fulfilled and the code is invalid, therefore
+    the function panics.
+
+    # Examples
+
+    This is a valid implementation of [`IsQuantity`]: [`Unit`] is always the
+    same regardless of input.
+    ```
+    use dyn_quantity::{DynQuantity, PredefUnit, Unit};
+    use var_quantity::{QuantityFunction, FunctionWrapper};
+    use uom::si::electrical_resistance::ohm;
+    use uom::si::f64::{ElectricalResistance};
+
+    // The serde annotations are just here because the doctests of this crate use
+    // the serde feature - they are not needed if the serde feature is disabled.
+    #[derive(Clone, serde::Deserialize, serde::Serialize)]
+    struct Resistance;
+
+    // Again, the macro annotation is just here because of the serde feature
+    #[typetag::serde]
+    impl QuantityFunction for Resistance {
+        fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+            return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
+        }
+    }
+
+    let wrapped_resistance = FunctionWrapper::<ElectricalResistance>::new(Box::new(Resistance {})).expect("units match");
+    assert_eq!(ElectricalResistance::new::<ohm>(1.0), wrapped_resistance.call(&[1.0.into()]));
+    ```
+
+    This is an invalid (and nonsensical) implementation of [`QuantityFunction`]
+    where the output unit changes with the number of arguments:
+    ```should_panic
+    use dyn_quantity::{DynQuantity, PredefUnit, Unit};
+    use var_quantity::{QuantityFunction, FunctionWrapper};
+    use uom::si::f64::{ElectricalResistance};
+
+    // The serde annotations are just here because the doctests of this crate use
+    // the serde feature - they are not needed if the serde feature is disabled.
+    #[derive(Clone, serde::Deserialize, serde::Serialize)]
+    struct Resistance;
+
+    // Again, the macro annotation is just here because of the serde feature
+    #[typetag::serde]
+    impl QuantityFunction for Resistance {
+        fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+            if influencing_factors.len() == 0 {
+                return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
+            } else {
+                return DynQuantity::new(1.0, PredefUnit::None);
+            }
+        }
+    }
+
+    // Construction succeeds since the test call is done with an empty slice
+    let wrapped_resistance = FunctionWrapper::<ElectricalResistance>::new(Box::new(Resistance {})).expect("units match");
+
+    // ... but calling with a quantity results in a panic
+    let _ = wrapped_resistance.call(&[DynQuantity::new(1.0, PredefUnit::None)]);
+    ```
      */
     pub fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> T {
         match T::try_from(self.function.call(influencing_factors).into()) {
@@ -373,13 +432,25 @@ This is also the reason why [`QuantityFunction::call`] returns a
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum VarQuantity<T: IsQuantity> {
+    /**
+    Optimization for the common case of a constant quantity. This avoids going
+    through dynamic dispatch when accessing the value.
+     */
     Constant(T),
+    /**
+    Catch-all variant for any non-constant behaviour. Arbitrary behaviour
+    can be realized with the contained [`QuantityFunction`] trait object, as
+    long as the unit constraint outlined in the [`VarQuantity`] docstring is
+    upheld.
+     */
     Function(FunctionWrapper<T>),
 }
 
 impl<T: IsQuantity> VarQuantity<T> {
     /**
-    TODO
+    Matches against `self` and either returns the contained value (variant
+    [`VarQuantity::Constant`]) or executes the call method of the contained
+    [`FunctionWrapper`] (variant [`VarQuantity::Function`]).
     */
     pub fn get(&self, influencing_factors: &[DynQuantity<f64>]) -> T {
         match self {
@@ -460,67 +531,144 @@ mod serde_impl {
 }
 
 /**
-TODO
-Wrapper around a 'QuantityFunction' instance which clamps the output
+A wrapper around a type implementing [`QuantityFunction`] trait object which
+clamps the output of [`QuantityFunction::call`] using the provided upper and
+lower limits.
 
-Explain why it takes a box and is not generic -> serde typetag cannot deal with generics!
+If the `serde` feature is not activated, it implements [`QuantityFunction`]
+in a generic manner and can therefore be used in a [`FunctionWrapper`]. If
+`serde` is activated, it is unfortately not possible to provide a generic
+implementation due to the macro `#[typetag::serde]` not being able to deal with
+generics. As a workaround, it is possible to provide a simple custom
+implementation for each concrete type in your own crate:
+
+```ignore
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl QuantityFunction for ClampedQuantity<YourTypeHere> {
+    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        return self.call_clamped(influencing_factors);
+    }
+}
+```
+
+This approach is used for all the implementors of [`QuantityFunction`] provided
+with this crate.
  */
+#[derive(Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct VariableOutputClamped {
+pub struct ClampedQuantity<T: QuantityFunction> {
     upper_limit: f64,
     lower_limit: f64,
-    variable: Box<dyn QuantityFunction>,
+    function: T,
 }
 
-impl VariableOutputClamped {
+impl<T: QuantityFunction> ClampedQuantity<T> {
     /**
-    TODO
+    Checks if `upper_limit >= lower_limit` and returns a new instance of
+    [`ClampedQuantity`] if true.
     */
-    pub fn new(
-        upper_limit: f64,
-        lower_limit: f64,
-        variable: Box<dyn QuantityFunction>,
-    ) -> Result<Self, &'static str> {
+    pub fn new(upper_limit: f64, lower_limit: f64, function: T) -> Result<Self, &'static str> {
         if upper_limit < lower_limit {
             return Err("upper limit must not be smaller than the lower limit");
         }
         return Ok(Self {
             upper_limit,
             lower_limit,
-            variable,
+            function,
         });
     }
-}
 
-impl Clone for VariableOutputClamped {
-    fn clone(&self) -> Self {
-        Self {
-            upper_limit: self.upper_limit.clone(),
-            lower_limit: self.lower_limit.clone(),
-            variable: dyn_clone::clone_box(&*self.variable),
-        }
+    /**
+    Returns the underlying [`QuantityFunction`].
+     */
+    pub fn inner(&self) -> &T {
+        return &self.function;
     }
-}
 
-#[cfg_attr(feature = "serde", typetag::serde)]
-impl QuantityFunction for VariableOutputClamped {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        let mut dyn_quantity = self.variable.call(influencing_factors);
+    /**
+    Returns the underlying [`QuantityFunction`] as a trait object.
+     */
+    pub fn inner_dyn(&self) -> &dyn QuantityFunction {
+        return &self.function;
+    }
+
+    /// Returns the upper limit.
+    pub fn upper_limit(&self) -> f64 {
+        return self.upper_limit;
+    }
+
+    /// Returns the lower limit.
+    pub fn lower_limit(&self) -> f64 {
+        return self.lower_limit;
+    }
+
+    /**
+    Clamps the output value of `T::call` using the provided upper and lower
+    limits. This function is mainly here to simplify custom [`QuantityFunction`]
+    implementations, see the [`ClampedQuantity`] docstring.
+     */
+    pub fn call_clamped(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        let mut dyn_quantity = self.function.call(influencing_factors);
         dyn_quantity.value = dyn_quantity.value.clamp(self.lower_limit, self.upper_limit);
         return dyn_quantity;
     }
 }
 
-/**
-TODO
+#[cfg(not(feature = "serde"))]
+impl<T: QuantityFunction> QuantityFunction for ClampedQuantity<T> {
+    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        return self.call_clamped(influencing_factors);
+    }
+}
 
-Get the value specified by `influencing_quantity` from the given influencing_factors
+/**
+A helper function which filters the `influencing_factors` for a quantity with
+the type `match_for`. If a matching quantity is found, it is used as argument
+for `F` and the result is returned. Otherwise, the result of `G()` is returned.
+
+The main purpose of this function is to simplify writing unary functions. For
+example, the [`QuantityFunction::call`] implementation of a linear function
+can look like this:
+
+```
+use dyn_quantity::{DynQuantity, Unit};
+use var_quantity::{filter_unary_function, QuantityFunction};
+
+// The serde annotations are just here because the doctests of this crate use
+// the serde feature - they are not needed if the serde feature is disabled.
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct Linear {
+    slope: f64,
+    base_value: f64,
+}
+
+// Again, the macro annotation is just here because of the serde feature
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl QuantityFunction for Linear {
+    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        return filter_unary_function(
+            influencing_factors,
+            Unit::default(),
+            |input| {
+                DynQuantity::new(
+                    self.base_value + self.slope * input.value,
+                    Unit::default(),
+                )
+            },
+            || DynQuantity::new(
+                    self.base_value,
+                    Unit::default(),
+                ),
+        );
+    }
+}
+```
  */
 pub fn filter_unary_function<F, G>(
     influencing_factors: &[DynQuantity<f64>],
     match_for: Unit,
-    with_matched_condition: F,
-    no_condition_match: G,
+    with_matched: F,
+    no_match: G,
 ) -> DynQuantity<f64>
 where
     F: FnOnce(DynQuantity<f64>) -> DynQuantity<f64>,
@@ -528,8 +676,8 @@ where
 {
     for iq in influencing_factors {
         if iq.unit == match_for {
-            return with_matched_condition(iq.clone());
+            return with_matched(iq.clone());
         }
     }
-    no_condition_match()
+    no_match()
 }

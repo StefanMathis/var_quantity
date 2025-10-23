@@ -1,3 +1,7 @@
+/*!
+An unary [`FirstOrderTaylor`] function which implements [`QuantityFunction`].
+*/
+
 use dyn_quantity::{DynQuantity, Unit, UnitsNotEqual};
 
 use crate::{QuantityFunction, filter_unary_function};
@@ -34,7 +38,30 @@ pub struct FirstOrderTaylor {
 
 impl FirstOrderTaylor {
     /**
-    TODO
+    Checks if the amplitudes / exponents of all given terms are identical.
+    If this is the case, a new instance of [`Exponential`] is returned.
+
+    # Examples
+
+    ```
+    use std::str::FromStr;
+    use dyn_quantity::DynQuantity;
+    use var_quantity::{QuantityFunction, unary::FirstOrderTaylor};
+
+    // Matching units
+    assert!(FirstOrderTaylor::new(
+        DynQuantity::from_str("1 ohm").unwrap(),
+        DynQuantity::from_str("0.5 ohm/K").unwrap(),
+        DynQuantity::from_str("30 K").unwrap()
+    ).is_ok());
+
+    // Mismatched units
+    assert!(FirstOrderTaylor::new(
+        DynQuantity::from_str("1 A").unwrap(),
+        DynQuantity::from_str("0.5 ohm/K").unwrap(),
+        DynQuantity::from_str("30 K").unwrap()
+    ).is_err());
+    ```
     */
     pub fn new(
         base_value: DynQuantity<f64>,
@@ -57,31 +84,79 @@ impl FirstOrderTaylor {
     }
 
     /**
-    TODO
+    Returns the `base_value`.
     */
     pub fn base_value(&self) -> &DynQuantity<f64> {
         return &self.base_value;
     }
 
     /**
-    TODO
+    Returns the `expansion_point`.
     */
     pub fn expansion_point(&self) -> &DynQuantity<f64> {
         return &self.expansion_point;
     }
 
     /**
-    TODO
+    Returns the `slope`.
     */
     pub fn slope(&self) -> &DynQuantity<f64> {
         return &self.slope;
     }
 
     /**
-    TODO
+    Returns the unit of the quantity which influences the variable quantity.
+    If none of the `influencing_factors` in a [`QuantityFunction::call`]
+    matches this item, then `x` is assumed to be zero and the base value is
+    returned.
+
+    # Examples
+
+    ```
+    use std::str::FromStr;
+    use dyn_quantity::{DynQuantity, PredefUnit, Unit};
+    use var_quantity::{QuantityFunction, unary::FirstOrderTaylor};
+
+    let fot = FirstOrderTaylor::new(
+        DynQuantity::from_str("1 ohm").unwrap(),
+        DynQuantity::from_str("0.5 ohm/K").unwrap(),
+        DynQuantity::from_str("30 K").unwrap()
+    ).expect("matching units");
+
+    // No match of any input unit with influencing_factor_unit -> Base value
+    assert_eq!(fot.call(&[]).value, 1.0);
+
+    // A match -> Use the corresponding quantity function as x
+    let qt1 = DynQuantity::new(32.0, fot.influencing_factor_unit()); // <- Matches
+    let qt2 = DynQuantity::new(-2.0, PredefUnit::Force);
+
+    assert_eq!(fot.call(&[qt1, qt2]).value, 2.0);
+    ```
     */
-    pub fn influencing_factor_unit(&self) -> &Unit {
-        return &self.expansion_point.unit;
+    pub fn influencing_factor_unit(&self) -> Unit {
+        return self.expansion_point.unit;
+    }
+
+    /**
+    Returns the unit which will be returned from [`DynQuantity::call`].
+
+    ```
+    use std::str::FromStr;
+    use dyn_quantity::{DynQuantity, PredefUnit, Unit};
+    use var_quantity::{QuantityFunction, unary::FirstOrderTaylor};
+
+    // Matching units
+    let fot = FirstOrderTaylor::new(
+        DynQuantity::from_str("1 ohm").unwrap(),
+        DynQuantity::from_str("0.5 ohm/K").unwrap(),
+        DynQuantity::from_str("30 K").unwrap()
+    ).expect("matching units");
+
+    assert_eq!(fot.output_unit(), Unit::from(PredefUnit::ElectricResistance));
+    ```
+     */
+    pub fn output_unit(&self) -> Unit {
+        return self.base_value.unit;
     }
 }
 
@@ -124,5 +199,15 @@ mod serde_impl {
             Self::new(alias.base_value, alias.slope, alias.expansion_point)
                 .map_err(serde::de::Error::custom)
         }
+    }
+}
+
+// =============================================================================
+
+#[cfg(feature = "serde")]
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl QuantityFunction for crate::ClampedQuantity<FirstOrderTaylor> {
+    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        return self.call_clamped(influencing_factors);
     }
 }

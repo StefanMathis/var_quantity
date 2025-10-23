@@ -2,10 +2,13 @@
 name = "var_quantity"
 version = "0.1.0"
 edition = "2024"
+description = "Provides an interface for defining variable quantities whose value depends on that of other quantities"
+readme = "README.md"
+license  = "MIT OR Apache-2.0"
+repository = "https://github.com/StefanMathis/var_quantity.git"
 
 [dependencies]
 horner = "0.1.2"
-uom = {version = "0.36", default-features = false, features = ["f64", "si", "std"]}
 serde = { version = "1", features = ["derive"], optional = true }
 deserialize_untagged_verbose_error = {version = "^0.1", optional = true }
 typetag = { version = "^0.2", optional = true }
@@ -20,6 +23,7 @@ serde = ["dep:serde", "dep:typetag", "dep:deserialize_untagged_verbose_error", "
 from_str = ["dyn_quantity/from_str"]
 
 [dev-dependencies]
+uom = {version = "0.36", default-features = false, features = ["f64", "si", "std"]}
 serde_yaml = "0.8"
 approx = "0.5.1"
 indoc = "1.0"

@@ -1,3 +1,7 @@
+/*!
+An unary [`Polynomial`] function which implements [`QuantityFunction`].
+*/
+
 use dyn_quantity::{DynQuantity, Unit, UnitsNotEqual};
 
 use crate::{QuantityFunction, filter_unary_function};
@@ -69,17 +73,48 @@ impl Polynomial {
     }
 
     /**
-    TODO
+    Returns the `coefficients`.
     */
     pub fn coefficients(&self) -> &[DynQuantity<f64>] {
         return self.coefficients.as_slice();
     }
 
     /**
-    TODO
+    Returns the unit of the quantity which influences the variable quantity.
+    If none of the `influencing_factors` in a [`QuantityFunction::call`]
+    matches this item, then `x` is assumed to be zero and the base value is
+    returned.
+
+    # Examples
+
+    ```
+    use std::str::FromStr;
+    use dyn_quantity::{DynQuantity, PredefUnit, Unit};
+    use var_quantity::{QuantityFunction, unary::Polynomial};
+
+    let a = DynQuantity::new(
+        2.0,
+        Unit::from(PredefUnit::Power) / Unit::from(PredefUnit::MagneticFluxDensity).powi(2)
+    );
+    let b = DynQuantity::new(
+        0.5,
+        Unit::from(PredefUnit::Power) / Unit::from(PredefUnit::MagneticFluxDensity)
+    );
+    let c = DynQuantity::new(3.0, PredefUnit::Power);
+    let poly = Polynomial::new(vec![a, b, c]).expect("terms are checked during construction");
+
+    // No match of any input unit with influencing_factor_unit -> Base value
+    assert_eq!(poly.call(&[]).value, 3.0);
+
+    // A match -> Use the corresponding quantity function as x
+    let qt1 = DynQuantity::new(3.0, poly.influencing_factor_unit()); // <- Matches
+    let qt2 = DynQuantity::new(-2.0, PredefUnit::Force);
+
+    assert_eq!(poly.call(&[qt1, qt2]).value, 22.5);
+    ```
     */
-    pub fn influencing_factor_unit(&self) -> &Unit {
-        return &self.influencing_factor_unit;
+    pub fn influencing_factor_unit(&self) -> Unit {
+        return self.influencing_factor_unit;
     }
 }
 
@@ -118,5 +153,15 @@ mod serde_impl {
             let alias = PolynomialAlias::deserialize(deserializer)?;
             Self::new(alias.coefficients).map_err(serde::de::Error::custom)
         }
+    }
+}
+
+// =============================================================================
+
+#[cfg(feature = "serde")]
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl QuantityFunction for crate::ClampedQuantity<Polynomial> {
+    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        return self.call_clamped(influencing_factors);
     }
 }
