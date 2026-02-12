@@ -431,7 +431,7 @@ This is also the reason why [`QuantityFunction::call`] returns a
  */
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[serde(untagged)]
+#[cfg_attr(feature = "serde", serde(untagged))]
 pub enum VarQuantity<T: IsQuantity> {
     /**
     Optimization for the common case of a constant quantity. This avoids going
