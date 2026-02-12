@@ -3,9 +3,9 @@ use indoc::indoc;
 use serde::{Deserialize, Serialize};
 use uom::si::{
     electric_current::ampere, electrical_resistance::ohm, electrical_resistivity::ohm_meter,
-    f64::*, magnetic_flux_density::tesla, thermodynamic_temperature::kelvin,
+    f64::*, magnetic_flux_density::tesla, power::watt, thermodynamic_temperature::kelvin,
 };
-use var_quantity::*;
+use var_quantity::{unary::FirstOrderTaylor, *};
 
 #[test]
 fn test_deserialize_constant_success() {
@@ -40,9 +40,34 @@ fn test_deserialize_constant_fail() {
     }
 }
 
-// A simple function for a variable electric resistance. If one of the influencing_factors
-// is a temperature, divide it by 10 K and add it to the base value, otherwise
-// just return the base value
+#[test]
+fn test_serialize_and_deserialize() {
+    {
+        // Constant
+        let q = VarQuantity::Constant(MagneticFluxDensity::new::<tesla>(1.0));
+        let string = serde_yaml::to_string(&q).expect("serializable");
+        let q_serde: VarQuantity<MagneticFluxDensity> =
+            serde_yaml::from_str(&string).expect("deserializable");
+        assert_eq!(q_serde.get(&[]).get::<tesla>(), 1.0);
+    }
+    {
+        // Function
+        let fun = FirstOrderTaylor::new(
+            DynQuantity::new(2.5, PredefUnit::Power),
+            DynQuantity::new(2.0, Unit::from(PredefUnit::ElectricCurrent).powi(-1)),
+            DynQuantity::new(0.5, PredefUnit::ElectricCurrent),
+        )
+        .unwrap();
+        let q: VarQuantity<Power> = VarQuantity::try_from_quantity_function(fun).unwrap();
+        let string = serde_yaml::to_string(&q).expect("serializable");
+        let q_serde: VarQuantity<Power> = serde_yaml::from_str(&string).expect("deserializable");
+        assert_eq!(q_serde.get(&[]).get::<watt>(), 2.5);
+    }
+}
+
+// A simple function for a variable electric resistance. If one of the
+// influencing_factors is a temperature, divide it by 10 K and add it to the
+// base value, otherwise just return the base value
 #[derive(Serialize, Deserialize, Clone)]
 struct VariableResistance {
     #[serde(deserialize_with = "deserialize_quantity")]
@@ -110,7 +135,7 @@ fn test_deserialize_var_resistance() {
 }
 
 #[test]
-fn test_serialize_and_deserialize() {
+fn test_serialize_and_deserialize_var_resistance() {
     let influencing_factors = [
         ElectricCurrent::new::<ampere>(2.0).into(),
         ThermodynamicTemperature::new::<kelvin>(20.0).into(),

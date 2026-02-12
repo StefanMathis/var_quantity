@@ -431,6 +431,7 @@ This is also the reason why [`QuantityFunction::call`] returns a
  */
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
+#[serde(untagged)]
 pub enum VarQuantity<T: IsQuantity> {
     /**
     Optimization for the common case of a constant quantity. This avoids going
@@ -457,6 +458,25 @@ impl<T: IsQuantity> VarQuantity<T> {
             Self::Constant(val) => val.clone(),
             Self::Function(fun) => fun.call(influencing_factors),
         }
+    }
+
+    /**
+    Creates a new [`VarQuantity`] instance if the output [`Unit`] of the given
+    function matches that of `T`.
+
+    This is a convenience wrapper around the following steps:
+    1) Box `fun` and cast it to a trait object.
+    2) Call [`FunctionWrapper<T>::new`] on the boxed trait object.
+    3) Wrap the resulting [`FunctionWrapper<T>`] in [`VarQuantity<T>::Function`].
+
+    In a similar fashion, it is also possible to skip step 1 and use the
+    corresponding [`TryFrom`] implementation (unfortunately, this is not
+    possible for the generic `F` due to colliding blanket implementations in
+    the Rust standard library).
+    */
+    pub fn try_from_quantity_function<F: QuantityFunction>(fun: F) -> Result<Self, UnitsNotEqual> {
+        let boxed: Box<dyn QuantityFunction> = Box::new(fun);
+        return boxed.try_into();
     }
 }
 
