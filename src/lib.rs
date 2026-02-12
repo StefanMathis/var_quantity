@@ -460,6 +460,21 @@ impl<T: IsQuantity> VarQuantity<T> {
     }
 }
 
+impl<T: IsQuantity> TryFrom<Box<dyn QuantityFunction>> for VarQuantity<T> {
+    type Error = UnitsNotEqual;
+
+    fn try_from(value: Box<dyn QuantityFunction>) -> Result<Self, Self::Error> {
+        let wrapper = FunctionWrapper::new(value)?;
+        return Ok(Self::Function(wrapper));
+    }
+}
+
+impl<T: IsQuantity> From<T> for VarQuantity<T> {
+    fn from(value: T) -> Self {
+        return Self::Constant(value);
+    }
+}
+
 #[cfg(feature = "serde")]
 mod serde_impl {
     use serde::de::DeserializeOwned;
@@ -497,21 +512,22 @@ mod serde_impl {
             use std::str::FromStr;
 
             #[derive(deserialize_untagged_verbose_error::DeserializeUntaggedVerboseError)]
-            enum NumberOrString<T> {
-                Number(T),
+            enum InnerOrString<T> {
+                Inner(T),
                 #[cfg(feature = "from_str")]
                 String(String),
             }
 
             let content: serde_value::Value = serde::Deserialize::deserialize(deserializer)?;
 
-            // Try to deserialize as a quantity. If that fails, try to deserialize as a function trait object
-            match NumberOrString::<T>::deserialize(serde_value::ValueDeserializer::<D::Error>::new(
+            // Try to deserialize as a quantity. If that fails, try to deserialize as a
+            // function trait object
+            match InnerOrString::<T>::deserialize(serde_value::ValueDeserializer::<D::Error>::new(
                 content.clone(),
             )) {
                 Ok(number_or_string) => match number_or_string {
-                    NumberOrString::Number(q) => return Ok(VarQuantity::Constant(q)),
-                    NumberOrString::String(s) => {
+                    InnerOrString::Inner(q) => return Ok(VarQuantity::Constant(q)),
+                    InnerOrString::String(s) => {
                         let dq = DynQuantity::<Complex<f64>>::from_str(&s)
                             .map_err(serde::de::Error::custom)?;
                         let q = T::try_from(dq).map_err(serde::de::Error::custom)?;

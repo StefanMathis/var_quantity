@@ -29,7 +29,7 @@ use var_quantity::{QuantityFunction, unary::FirstOrderTaylor};
 // Matching units
 let fot = FirstOrderTaylor::new(
     DynQuantity::from_str("2 ohm * m").unwrap(), // rho0
-    DynQuantity::from_str("0.5 ohm * m / K").unwrap(), // alpha
+    DynQuantity::from_str("0.5 / K").unwrap(), // alpha
     DynQuantity::from_str("30 K").unwrap() // T0
 ).expect("units match");
 
@@ -62,14 +62,14 @@ impl FirstOrderTaylor {
     // Matching units
     assert!(FirstOrderTaylor::new(
         DynQuantity::from_str("1 ohm").unwrap(),
-        DynQuantity::from_str("0.5 ohm/K").unwrap(),
+        DynQuantity::from_str("0.5 / K").unwrap(),
         DynQuantity::from_str("30 K").unwrap()
     ).is_ok());
 
     // Mismatched units
     assert!(FirstOrderTaylor::new(
-        DynQuantity::from_str("1 A").unwrap(),
-        DynQuantity::from_str("0.5 ohm/K").unwrap(),
+        DynQuantity::from_str("1 ohm").unwrap(),
+        DynQuantity::from_str("0.5 A").unwrap(),
         DynQuantity::from_str("30 K").unwrap()
     ).is_err());
     ```
@@ -79,9 +79,9 @@ impl FirstOrderTaylor {
         slope: DynQuantity<f64>,
         expansion_point: DynQuantity<f64>,
     ) -> Result<Self, UnitsNotEqual> {
-        // Assert that the unit of base_value is equal to that of slope times
-        // expansion_point -> Then the units are well-defined.
-        let expected = base_value.unit;
+        // Assert that the product of expansion_point unit and slope unit is
+        // unitless.
+        let expected = Unit::default();
         let found = expansion_point.unit * slope.unit;
         if expected == found {
             return Ok(Self {
@@ -130,7 +130,7 @@ impl FirstOrderTaylor {
 
     let fot = FirstOrderTaylor::new(
         DynQuantity::from_str("1 ohm").unwrap(),
-        DynQuantity::from_str("0.5 ohm/K").unwrap(),
+        DynQuantity::from_str("0.5 / K").unwrap(),
         DynQuantity::from_str("30 K").unwrap()
     ).expect("matching units");
 
@@ -159,7 +159,7 @@ impl FirstOrderTaylor {
     // Matching units
     let fot = FirstOrderTaylor::new(
         DynQuantity::from_str("1 ohm").unwrap(),
-        DynQuantity::from_str("0.5 ohm/K").unwrap(),
+        DynQuantity::from_str("0.5 / K").unwrap(),
         DynQuantity::from_str("30 K").unwrap()
     ).expect("matching units");
 

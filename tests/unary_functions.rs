@@ -70,7 +70,7 @@ fn test_first_order_taylor() {
     {
         let fun = FirstOrderTaylor::new(
             DynQuantity::new(2.5, PredefUnit::Power),
-            DynQuantity::new(2.0, PredefUnit::ElectricVoltage),
+            DynQuantity::new(2.0, Unit::from(PredefUnit::ElectricCurrent).powi(-1)),
             DynQuantity::new(0.5, PredefUnit::ElectricCurrent),
         )
         .unwrap();
@@ -356,7 +356,7 @@ fn test_first_order_taylor_serde() {
         let yaml = indoc! {"
         ---
         base_value: 2.5 W
-        slope: 2.0 V
+        slope: 2.0 / A
         expansion_point: 0.5 A
         "};
         let fun: FirstOrderTaylor = serde_yaml::from_str(yaml).unwrap();
@@ -406,6 +406,21 @@ fn test_first_order_taylor_serde() {
         assert_eq!(fun.call(&[0.5.into()]).value, 2.5);
         assert_eq!(fun.call(&[0.0.into()]).value, 2.5);
         assert_eq!(fun.call(&[1.5.into()]).value, 2.5);
+    }
+    {
+        let yaml = indoc! {"
+        ---
+        base_value: 1 / 56 m/MS # Inversion of 56 MS/m
+        expansion_point: 20.0 °C
+        slope: 0.393 % / K
+        "};
+        let fun: FirstOrderTaylor = serde_yaml::from_str(yaml).unwrap();
+        approx::assert_abs_diff_eq!(
+            fun.call(&[DynQuantity::new(20.0, PredefUnit::Temperature)])
+                .value,
+            0.0,
+            epsilon = 1e-3
+        );
     }
 }
 

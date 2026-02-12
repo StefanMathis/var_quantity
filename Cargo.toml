@@ -1,6 +1,6 @@
 [package]
 name = "var_quantity"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Provides an interface for defining variable quantities whose value depends on that of other quantities."
 readme = "README.md"
@@ -25,7 +25,7 @@ from_str = ["dyn_quantity/from_str"]
 [dev-dependencies]
 uom = {version = "0.36", default-features = false, features = ["f64", "si", "std"]}
 serde_yaml = "0.8"
-approx = "0.5.1"
+approx = { package = "approxim", version = "0.6" }
 indoc = "1.0"
 var_quantity = { path = ".", features = ["from_str", "serde"] }
 
