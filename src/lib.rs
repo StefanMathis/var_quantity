@@ -276,7 +276,7 @@ impl<T: IsQuantity> FunctionWrapper<T> {
     /**
     Returns the underlying [`QuantityFunction`] trait object.
      */
-    pub fn inner(&self) -> &dyn QuantityFunction {
+    pub fn inner(&self) -> &(dyn QuantityFunction + 'static) {
         return &*self.function;
     }
 }
