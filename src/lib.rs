@@ -98,7 +98,7 @@ In turn, this feature enables serialization / deserialization of [`VarQuantity`]
 without the need to specify the underlying function type in advance.
  */
 #[cfg_attr(feature = "serde", typetag::serde)]
-pub trait QuantityFunction: dyn_clone::DynClone + Sync + Send + 'static {
+pub trait QuantityFunction: dyn_clone::DynClone + Sync + Send + std::any::Any {
     /**
     Returns a quantity as a function of `influencing_factors`. See the
     [`QuantityFunction`] trait docstring for examples.
@@ -276,7 +276,7 @@ impl<T: IsQuantity> FunctionWrapper<T> {
     /**
     Returns the underlying [`QuantityFunction`] trait object.
      */
-    pub fn inner(&self) -> &(dyn QuantityFunction + 'static) {
+    pub fn inner(&self) -> &dyn QuantityFunction {
         return &*self.function;
     }
 }
