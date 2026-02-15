@@ -75,7 +75,7 @@ struct VariableResistance {
 }
 
 #[typetag::serde]
-impl QuantityFunction for VariableResistance {
+impl IsQuantityFunction for VariableResistance {
     fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let quantity = influencing_factors
             .into_iter()
@@ -144,7 +144,7 @@ fn test_serialize_and_deserialize_var_resistance() {
         let multiply_by_volt = VariableResistance {
             base_value: ElectricalResistance::new::<ohm>(2.0),
         };
-        let boxed: Box<dyn QuantityFunction> = Box::new(multiply_by_volt);
+        let boxed: Box<dyn IsQuantityFunction> = Box::new(multiply_by_volt);
         let string = serde_yaml::to_string(&boxed).unwrap();
         let var_quantity: VarQuantity<ElectricalResistance> =
             serde_yaml::from_str(&string).unwrap();

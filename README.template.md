@@ -1,18 +1,18 @@
 var_quantity
 ============
 
-[`VarQuantity`]: https://docs.rs/var_quantity/0.2.0/var_quantity/enum.VarQuantity.html
-[`VarQuantity::Constant`]: https://docs.rs/var_quantity/0.2.0/var_quantity/enum.VarQuantity.html#variant.Constant
-[`VarQuantity::Function`]: https://docs.rs/var_quantity/0.2.0/var_quantity/enum.VarQuantity.html#variant.Function
-[`VarQuantity::get`]: https://docs.rs/var_quantity/0.2.0/var_quantity/enum.VarQuantity.html#method.get
-[`QuantityFunction`]: https://docs.rs/var_quantity/0.2.0/var_quantity/struct.QuantityFunction.html
-[`QuantityFunction::call`]: https://docs.rs/var_quantity/0.2.0/var_quantity/struct.QuantityFunction.html#method.call
-[`QuantityFunction::new`]: https://docs.rs/var_quantity/0.2.0/var_quantity/struct.QuantityFunction.html#method.new
-[`IsQuantityFunction`]: https://docs.rs/var_quantity/0.2.0/var_quantity/trait.IsQuantityFunction.html
-[`IsQuantityFunction::call`]: https://docs.rs/var_quantity/0.2.0/var_quantity/trait.IsQuantityFunction.html#tymethod.call
-[`filter_unary_function`]: https://docs.rs/var_quantity/0.2.0/var_quantity/fn.filter_unary_function.html
-[`Polynomial`]: https://docs.rs/var_quantity/0.2.0/var_quantity/unary/struct.Polynomial.html
-[`unary`]: https://docs.rs/var_quantity/0.2.0/var_quantity/unary.html
+[`VarQuantity`]: https://docs.rs/var_quantity/{{VERSION}}/var_quantity/enum.VarQuantity.html
+[`VarQuantity::Constant`]: https://docs.rs/var_quantity/{{VERSION}}/var_quantity/enum.VarQuantity.html#variant.Constant
+[`VarQuantity::Function`]: https://docs.rs/var_quantity/{{VERSION}}/var_quantity/enum.VarQuantity.html#variant.Function
+[`VarQuantity::get`]: https://docs.rs/var_quantity/{{VERSION}}/var_quantity/enum.VarQuantity.html#method.get
+[`QuantityFunction`]: https://docs.rs/var_quantity/{{VERSION}}/var_quantity/struct.QuantityFunction.html
+[`QuantityFunction::call`]: https://docs.rs/var_quantity/{{VERSION}}/var_quantity/struct.QuantityFunction.html#method.call
+[`QuantityFunction::new`]: https://docs.rs/var_quantity/{{VERSION}}/var_quantity/struct.QuantityFunction.html#method.new
+[`IsQuantityFunction`]: https://docs.rs/var_quantity/{{VERSION}}/var_quantity/trait.IsQuantityFunction.html
+[`IsQuantityFunction::call`]: https://docs.rs/var_quantity/{{VERSION}}/var_quantity/trait.IsQuantityFunction.html#tymethod.call
+[`filter_unary_function`]: https://docs.rs/var_quantity/{{VERSION}}/var_quantity/fn.filter_unary_function.html
+[`Polynomial`]: https://docs.rs/var_quantity/{{VERSION}}/var_quantity/unary/struct.Polynomial.html
+[`unary`]: https://docs.rs/var_quantity/{{VERSION}}/var_quantity/unary.html
 [typetag]: (https://docs.rs/typetag/latest/typetag/)
 [uom]: (https://crates.io/crates/uom)
 
@@ -187,4 +187,4 @@ implementors of [`IsQuantityFunction`] cannot be generic.
 # Documentation
 
 The full API documentation is available at
-[https://docs.rs/var_quantity/0.2.0/var_quantity/](https://docs.rs/var_quantity/0.2.0/var_quantity/).
+[https://docs.rs/var_quantity/{{VERSION}}/var_quantity/](https://docs.rs/var_quantity/{{VERSION}}/var_quantity/).

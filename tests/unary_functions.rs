@@ -1,7 +1,7 @@
 use approx;
 use dyn_quantity::{DynQuantity, PredefUnit, Unit};
 use indoc::indoc;
-use var_quantity::{QuantityFunction, unary::*};
+use var_quantity::{IsQuantityFunction, unary::*};
 
 #[test]
 fn test_exponential() {

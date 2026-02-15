@@ -1,5 +1,5 @@
 /*!
-This module contains unary functions which implement [`QuantityFunction`](crate::QuantityFunction).
+This module contains unary functions which implement [`IsQuantityFunction`](crate::IsQuantityFunction).
 */
 
 pub mod exponential;

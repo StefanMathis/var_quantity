@@ -1,10 +1,10 @@
 /*!
-An unary [`Polynomial`] function which implements [`QuantityFunction`].
+An unary [`Polynomial`] function which implements [`IsQuantityFunction`].
 */
 
 use dyn_quantity::{DynQuantity, Unit, UnitsNotEqual};
 
-use crate::{QuantityFunction, filter_unary_function};
+use crate::{IsQuantityFunction, filter_unary_function};
 
 /**
 A polynom defined via its coefficients:
@@ -18,7 +18,7 @@ where `N` is the length of the coefficient input vector. For example, the vector
 
 This evaluation order is equal to that used in the
 [horner](https://crates.io/crates/horner) crate, which is used in the
-[`QuantityFunction`] call implementation. From that, one finds that the unit of
+[`IsQuantityFunction`] call implementation. From that, one finds that the unit of
 the influencing quantity is `d.unit / c.unit`. All other coefficients need
 to match this convention, taking the power of `x` into account. This is checked
 in the constructor [`Polynomial::new`].
@@ -46,7 +46,7 @@ impl Polynomial {
     # Examples
     ```
     use dyn_quantity::{DynQuantity, PredefUnit};
-    use var_quantity::{QuantityFunction, unary::Polynomial};
+    use var_quantity::{IsQuantityFunction, unary::Polynomial};
 
     // An example for a variable "volume" quantity
     assert!(Polynomial::new(vec![
@@ -117,7 +117,7 @@ impl Polynomial {
 
     /**
     Returns the unit of the quantity which influences the variable quantity.
-    If none of the `influencing_factors` in a [`QuantityFunction::call`]
+    If none of the `influencing_factors` in a [`IsQuantityFunction::call`]
     matches this item, then `x` is assumed to be zero and the base value is
     returned.
 
@@ -125,7 +125,7 @@ impl Polynomial {
 
     ```
     use dyn_quantity::{DynQuantity, PredefUnit, Unit};
-    use var_quantity::{QuantityFunction, unary::Polynomial};
+    use var_quantity::{IsQuantityFunction, unary::Polynomial};
 
     let a = DynQuantity::new(
         2.0,
@@ -153,11 +153,11 @@ impl Polynomial {
     }
 
     /**
-    Returns the unit which will be returned from [`QuantityFunction::call`].
+    Returns the unit which will be returned from [`IsQuantityFunction::call`].
 
     ```
     use dyn_quantity::{DynQuantity, PredefUnit, Unit};
-    use var_quantity::{QuantityFunction, unary::Polynomial};
+    use var_quantity::{IsQuantityFunction, unary::Polynomial};
 
     let poly = Polynomial::new(vec![
         DynQuantity::new(1.0, PredefUnit::None),
@@ -175,7 +175,7 @@ impl Polynomial {
 }
 
 #[cfg_attr(feature = "serde", typetag::serde)]
-impl QuantityFunction for Polynomial {
+impl IsQuantityFunction for Polynomial {
     fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return filter_unary_function(
             influencing_factors,
@@ -216,7 +216,7 @@ mod serde_impl {
 
 #[cfg(feature = "serde")]
 #[cfg_attr(feature = "serde", typetag::serde)]
-impl QuantityFunction for crate::ClampedQuantity<Polynomial> {
+impl IsQuantityFunction for crate::ClampedQuantity<Polynomial> {
     fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(influencing_factors);
     }
