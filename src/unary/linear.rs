@@ -56,7 +56,7 @@ impl Linear {
 
     /**
     Returns the unit of the quantity which influences the variable quantity.
-    If none of the `influencing_factors` in a [`IsQuantityFunction::call`]
+    If none of the `conditions` in a [`IsQuantityFunction::call`]
     matches this item, then `x` is assumed to be zero and `base_value` is
     returned.
 
@@ -109,9 +109,9 @@ impl Linear {
 
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl IsQuantityFunction for Linear {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return filter_unary_function(
-            influencing_factors,
+            conditions,
             self.influencing_factor_unit(),
             |input| {
                 // Units are already checked during construction - we can simply
@@ -131,7 +131,7 @@ impl IsQuantityFunction for Linear {
 #[cfg(feature = "serde")]
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl IsQuantityFunction for crate::ClampedQuantity<Linear> {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        return self.call_clamped(influencing_factors);
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        return self.call_clamped(conditions);
     }
 }

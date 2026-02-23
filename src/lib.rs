@@ -3,7 +3,7 @@
 
 use std::{marker::PhantomData, ops::Deref};
 
-use dyn_quantity::{DynQuantity, Unit, UnitFromType, UnitsNotEqual};
+pub use dyn_quantity::*;
 
 use num::Complex;
 #[cfg(feature = "serde")]
@@ -12,6 +12,7 @@ pub use typetag;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+pub use dyn_quantity;
 pub mod unary;
 
 /**
@@ -40,8 +41,7 @@ value can change under the influence of other quantities. For example, a
 resistance can be a function of temperature:
 
 ```
-use dyn_quantity::{DynQuantity, PredefUnit, Unit};
-use var_quantity::IsQuantityFunction;
+use var_quantity::{DynQuantity, PredefUnit, Unit, IsQuantityFunction};
 
 // The serde annotations are just here because the doctests of this crate use
 // the serde feature - they are not needed if the serde feature is disabled.
@@ -51,10 +51,10 @@ struct Resistance;
 // Again, the macro annotation is just here because of the serde feature
 #[typetag::serde]
 impl IsQuantityFunction for Resistance {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let mut temperature = 0.0;
         let temperature_unit: Unit = PredefUnit::Temperature.into();
-        for f in influencing_factors.iter() {
+        for f in conditions.iter() {
             if f.unit == temperature_unit {
                 temperature = f.value;
                 break;
@@ -100,10 +100,10 @@ without the need to specify the underlying function type in advance.
 #[cfg_attr(feature = "serde", typetag::serde)]
 pub trait IsQuantityFunction: dyn_clone::DynClone + Sync + Send + std::any::Any {
     /**
-    Returns a quantity as a function of `influencing_factors`. See the
+    Returns a quantity as a function of `conditions`. See the
     [`IsQuantityFunction`] trait docstring for examples.
     */
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64>;
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64>;
 }
 
 /**
@@ -147,7 +147,7 @@ impl<T: IsQuantity> QuantityFunction<T> {
     /**
     Creates a new instance of `Self` and performs a type safety check by running
     the [`IsQuantityFunction::call`] of `function` with an empty slice as
-    `influencing_factors`. The unit of the resulting [`DynQuantity`] is then
+    `conditions`. The unit of the resulting [`DynQuantity`] is then
     compared to that created by [`T::unit_from_type`](UnitFromType::unit_from_type).
     If they don't match, an error is returned. See the docstring of
     [`QuantityFunction`] for more.
@@ -155,9 +155,9 @@ impl<T: IsQuantity> QuantityFunction<T> {
     # Examples
 
     ```
-    use dyn_quantity::{DynQuantity, PredefUnit, Unit};
+    use var_quantity::{DynQuantity, PredefUnit, Unit};
     use var_quantity::{IsQuantityFunction, QuantityFunction};
-    use uom::si::f64::{ElectricalResistance, ElectricCurrent};
+    use var_quantity::uom::si::f64::{ElectricalResistance, ElectricCurrent};
 
     // The serde annotations are just here because the doctests of this crate use
     // the serde feature - they are not needed if the serde feature is disabled.
@@ -167,7 +167,7 @@ impl<T: IsQuantity> QuantityFunction<T> {
     // Again, the macro annotation is just here because of the serde feature
     #[typetag::serde]
     impl IsQuantityFunction for Resistance {
-        fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
             return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
         }
     }
@@ -207,10 +207,9 @@ impl<T: IsQuantity> QuantityFunction<T> {
     This is a valid implementation of [`IsQuantity`]: [`Unit`] is always the
     same regardless of input.
     ```
-    use dyn_quantity::{DynQuantity, PredefUnit, Unit};
-    use var_quantity::{IsQuantityFunction, QuantityFunction};
-    use uom::si::electrical_resistance::ohm;
-    use uom::si::f64::{ElectricalResistance};
+    use var_quantity::{DynQuantity, PredefUnit, Unit, IsQuantityFunction, QuantityFunction};
+    use var_quantity::uom::si::electrical_resistance::ohm;
+    use var_quantity::uom::si::f64::{ElectricalResistance};
 
     // The serde annotations are just here because the doctests of this crate use
     // the serde feature - they are not needed if the serde feature is disabled.
@@ -220,7 +219,7 @@ impl<T: IsQuantity> QuantityFunction<T> {
     // Again, the macro annotation is just here because of the serde feature
     #[typetag::serde]
     impl IsQuantityFunction for Resistance {
-        fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
             return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
         }
     }
@@ -232,9 +231,9 @@ impl<T: IsQuantity> QuantityFunction<T> {
     This is an invalid (and nonsensical) implementation of [`IsQuantityFunction`]
     where the output unit changes with the number of arguments:
     ```should_panic
-    use dyn_quantity::{DynQuantity, PredefUnit, Unit};
+    use var_quantity::{DynQuantity, PredefUnit, Unit};
     use var_quantity::{IsQuantityFunction, QuantityFunction};
-    use uom::si::f64::{ElectricalResistance};
+    use var_quantity::uom::si::f64::{ElectricalResistance};
 
     // The serde annotations are just here because the doctests of this crate use
     // the serde feature - they are not needed if the serde feature is disabled.
@@ -244,8 +243,8 @@ impl<T: IsQuantity> QuantityFunction<T> {
     // Again, the macro annotation is just here because of the serde feature
     #[typetag::serde]
     impl IsQuantityFunction for Resistance {
-        fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-            if influencing_factors.len() == 0 {
+        fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+            if conditions.len() == 0 {
                 return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
             } else {
                 return DynQuantity::new(1.0, PredefUnit::None);
@@ -260,8 +259,8 @@ impl<T: IsQuantity> QuantityFunction<T> {
     let _ = wrapped_resistance.call(&[DynQuantity::new(1.0, PredefUnit::None)]);
     ```
      */
-    pub fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> T {
-        match T::try_from(self.function.call(influencing_factors).into()) {
+    pub fn call(&self, conditions: &[DynQuantity<f64>]) -> T {
+        match T::try_from(self.function.call(conditions).into()) {
             Ok(val) => val,
             Err(_) => {
                 panic!(
@@ -269,7 +268,7 @@ impl<T: IsQuantity> QuantityFunction<T> {
                     This means that the IsQuantityFunction trait object returns
                     different DynQuantity<f64> depending on the input, which
                     is a bug in the implementation of the trait object.",
-                    influencing_factors
+                    conditions
                 )
             }
         }
@@ -342,8 +341,8 @@ statically typed physical quantity (e.g. from the [uom](https://crates.io/crates
 library), for which [`From<DynQuantity<f64>>`] can obviously not be implemented.
 The conversion is checked once when constructing a [`QuantityFunction`] from a
 [`IsQuantityFunction`] trait object by calling [`IsQuantityFunction::call`] with
-`influencing_factors = &[]`, but of course it is impossible to test all
-potential values for `influencing_factors`.
+`conditions = &[]`, but of course it is impossible to test all
+potential values for `conditions`.
 
 It is therefore up to the provider of the trait object to make sure that the
 [`DynQuantity<f64>`] returned by [`IsQuantityFunction::call`] always has the same
@@ -357,9 +356,9 @@ has entered an invalid state, resulting in a [`panic!`].
 This example shows how [`VarQuantity`] integrates with both [`f64`] and
 [uom](https://crates.io/crates/uom) [`Quantity`](https://docs.rs/uom/latest/uom/si/struct.Quantity.html).
 ```
-use dyn_quantity::{DynQuantity, PredefUnit, Unit};
-use uom::si::electrical_resistance::ohm;
-use uom::si::f64::ElectricalResistance;
+use var_quantity::{DynQuantity, PredefUnit, Unit};
+use var_quantity::uom::si::electrical_resistance::ohm;
+use var_quantity::uom::si::f64::ElectricalResistance;
 use var_quantity::{QuantityFunction, IsQuantityFunction, VarQuantity};
 
 // =============================================================================
@@ -390,10 +389,10 @@ struct ResistanceFunction;
 
 #[typetag::serde]
 impl IsQuantityFunction for ResistanceFunction {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let mut temperature = 0.0;
         let temperature_unit: Unit = PredefUnit::Temperature.into();
-        for f in influencing_factors.iter() {
+        for f in conditions.iter() {
             if f.unit == temperature_unit {
                 temperature = f.value;
                 break;
@@ -417,9 +416,9 @@ assert_eq!(ElectricalResistance::new::<ohm>(1.2), qt_var.get(infl2));
 This example shows a violation of the assumption that the [`DynQuantity`] returned
 by the [`IsQuantityFunction`] trait object is convertible to `T`.
 ```
-use dyn_quantity::{DynQuantity, PredefUnit};
-use uom::si::electrical_conductance::siemens;
-use uom::si::f64::{ElectricalResistance, ElectricalConductance};
+use var_quantity::{DynQuantity, PredefUnit};
+use var_quantity::uom::si::electrical_conductance::siemens;
+use var_quantity::uom::si::f64::{ElectricalResistance, ElectricalConductance};
 use var_quantity::{QuantityFunction, IsQuantityFunction, VarQuantity};
 
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
@@ -427,7 +426,7 @@ struct ResistanceFunction;
 
 #[typetag::serde]
 impl IsQuantityFunction for ResistanceFunction {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
     }
 }
@@ -469,10 +468,10 @@ impl<T: IsQuantity> VarQuantity<T> {
     [`VarQuantity::Constant`]) or executes the call method of the contained
     [`QuantityFunction`] (variant [`VarQuantity::Function`]).
     */
-    pub fn get(&self, influencing_factors: &[DynQuantity<f64>]) -> T {
+    pub fn get(&self, conditions: &[DynQuantity<f64>]) -> T {
         match self {
             Self::Constant(val) => val.clone(),
-            Self::Function(fun) => fun.call(influencing_factors),
+            Self::Function(fun) => fun.call(conditions),
         }
     }
 
@@ -610,8 +609,8 @@ implementation for each concrete type in your own crate:
 ```ignore
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl IsQuantityFunction for ClampedQuantity<YourTypeHere> {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        return self.call_clamped(influencing_factors);
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        return self.call_clamped(conditions);
     }
 }
 ```
@@ -672,8 +671,8 @@ impl<T: IsQuantityFunction> ClampedQuantity<T> {
     limits. This function is mainly here to simplify custom [`IsQuantityFunction`]
     implementations, see the [`ClampedQuantity`] docstring.
      */
-    pub fn call_clamped(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        let mut dyn_quantity = self.function.call(influencing_factors);
+    pub fn call_clamped(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        let mut dyn_quantity = self.function.call(conditions);
         dyn_quantity.value = dyn_quantity.value.clamp(self.lower_limit, self.upper_limit);
         return dyn_quantity;
     }
@@ -681,13 +680,13 @@ impl<T: IsQuantityFunction> ClampedQuantity<T> {
 
 #[cfg(not(feature = "serde"))]
 impl<T: IsQuantityFunction + Clone> IsQuantityFunction for ClampedQuantity<T> {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        return self.call_clamped(influencing_factors);
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        return self.call_clamped(conditions);
     }
 }
 
 /**
-A helper function which filters the `influencing_factors` for a quantity with
+A helper function which filters the `conditions` for a quantity with
 the type `match_for`. If a matching quantity is found, it is used as argument
 for `F` and the result is returned. Otherwise, the result of `G()` is returned.
 
@@ -710,9 +709,9 @@ pub struct Linear {
 // Again, the macro annotation is just here because of the serde feature
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl IsQuantityFunction for Linear {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return filter_unary_function(
-            influencing_factors,
+            conditions,
             Unit::default(),
             |input| {
                 DynQuantity::new(
@@ -730,7 +729,7 @@ impl IsQuantityFunction for Linear {
 ```
  */
 pub fn filter_unary_function<F, G>(
-    influencing_factors: &[DynQuantity<f64>],
+    conditions: &[DynQuantity<f64>],
     match_for: Unit,
     with_matched: F,
     no_match: G,
@@ -739,7 +738,7 @@ where
     F: FnOnce(DynQuantity<f64>) -> DynQuantity<f64>,
     G: FnOnce() -> DynQuantity<f64>,
 {
-    for iq in influencing_factors {
+    for iq in conditions {
         if iq.unit == match_for {
             return with_matched(iq.clone());
         }

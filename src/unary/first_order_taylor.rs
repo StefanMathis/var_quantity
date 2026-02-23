@@ -117,7 +117,7 @@ impl FirstOrderTaylor {
 
     /**
     Returns the unit of the quantity which influences the variable quantity.
-    If none of the `influencing_factors` in a [`IsQuantityFunction::call`]
+    If none of the `conditions` in a [`IsQuantityFunction::call`]
     matches this item, then `x` is assumed to be zero and the base value is
     returned.
 
@@ -173,9 +173,9 @@ impl FirstOrderTaylor {
 
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl IsQuantityFunction for FirstOrderTaylor {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return filter_unary_function(
-            influencing_factors,
+            conditions,
             self.expansion_point.unit,
             |input| {
                 // Units are already checked during construction - we can simply
@@ -218,7 +218,7 @@ mod serde_impl {
 #[cfg(feature = "serde")]
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl IsQuantityFunction for crate::ClampedQuantity<FirstOrderTaylor> {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        return self.call_clamped(influencing_factors);
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        return self.call_clamped(conditions);
     }
 }

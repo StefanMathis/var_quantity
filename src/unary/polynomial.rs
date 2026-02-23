@@ -117,7 +117,7 @@ impl Polynomial {
 
     /**
     Returns the unit of the quantity which influences the variable quantity.
-    If none of the `influencing_factors` in a [`IsQuantityFunction::call`]
+    If none of the `conditions` in a [`IsQuantityFunction::call`]
     matches this item, then `x` is assumed to be zero and the base value is
     returned.
 
@@ -176,9 +176,9 @@ impl Polynomial {
 
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl IsQuantityFunction for Polynomial {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return filter_unary_function(
-            influencing_factors,
+            conditions,
             self.influencing_factor_unit,
             |input| {
                 let val =
@@ -217,7 +217,7 @@ mod serde_impl {
 #[cfg(feature = "serde")]
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl IsQuantityFunction for crate::ClampedQuantity<Polynomial> {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        return self.call_clamped(influencing_factors);
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        return self.call_clamped(conditions);
     }
 }

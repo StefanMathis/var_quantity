@@ -27,9 +27,9 @@ sophisticated model would also consider the field frequency. Using the
 [`VarQuantity`] wrapper, both models can be used with the same interface:
 
 ```rust
-use dyn_quantity::{DynQuantity, PredefUnit, Unit};
-use var_quantity::{IsQuantityFunction, VarQuantity, QuantityFunction};
-use uom::si::{f64::{Power, MagneticFluxDensity, Frequency}, 
+use var_quantity::{IsQuantityFunction, VarQuantity, QuantityFunction,
+                   DynQuantity, PredefUnit, Unit};
+use var_quantity::uom::si::{f64::{Power, MagneticFluxDensity, Frequency}, 
     power::watt, magnetic_flux_density::tesla, frequency::hertz};
 
 // The serde annotations are just here because the doctests of this crate use
@@ -41,9 +41,9 @@ struct Model1(DynQuantity<f64>);
 
 #[typetag::serde]
 impl IsQuantityFunction for Model1 {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let mut b = DynQuantity::new(0.0, PredefUnit::MagneticFluxDensity);
-        for factor in influencing_factors.iter() {
+        for factor in conditions.iter() {
             if b.unit == factor.unit {
                 b = factor.clone();
             }
@@ -58,10 +58,10 @@ struct Model2(DynQuantity<f64>);
 
 #[typetag::serde]
 impl IsQuantityFunction for Model2 {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let mut b = DynQuantity::new(0.0, PredefUnit::MagneticFluxDensity);
         let mut f = DynQuantity::new(0.0, PredefUnit::Frequency);
-        for factor in influencing_factors.iter() {
+        for factor in conditions.iter() {
             if b.unit == factor.unit {
                 b = factor.clone();
             }
@@ -108,7 +108,7 @@ The workflow to use the interface of this crate is as follows:
 - Define the relation between input and output by implementing
 [`IsQuantityFunction`] for the type representing a variable quantity (`Model1` and
 `Model2` in the previous example). The implementor is responsible for selecting
-the right quantities for his model from the give `influencing_factors` (for
+the right quantities for his model from the give `conditions` (for
 unary functions, the crate provides [`filter_unary_function`] to simplify this)
 and also for defining sensible defaults if the needed quantity is not given
 (in the example above, the default flux density and frequency was defined to
@@ -141,9 +141,9 @@ crate. For example, model 1 from the introduction could also be realized
 using the [`Polynomial`] struct from the [`unary`] module:
 
 ```rust
-use dyn_quantity::{DynQuantity, PredefUnit, Unit};
+use var_quantity::{DynQuantity, PredefUnit, Unit};
 use var_quantity::{unary::Polynomial, VarQuantity, QuantityFunction};
-use uom::si::{f64::{Power, MagneticFluxDensity, Frequency}, 
+use var_quantity::uom::si::{f64::{Power, MagneticFluxDensity, Frequency}, 
     power::watt, magnetic_flux_density::tesla, frequency::hertz};
 
 // The input vector [a, b, c] is evaluated as ax² + bx + c. Here, b and c are

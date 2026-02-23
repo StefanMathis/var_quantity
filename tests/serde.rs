@@ -1,10 +1,10 @@
-use dyn_quantity::{DynQuantity, PredefUnit, Unit, deserialize_quantity};
-use indoc::indoc;
-use serde::{Deserialize, Serialize};
-use uom::si::{
+use dyn_quantity::uom::si::{
     electric_current::ampere, electrical_resistance::ohm, electrical_resistivity::ohm_meter,
     f64::*, magnetic_flux_density::tesla, power::watt, thermodynamic_temperature::kelvin,
 };
+use dyn_quantity::{DynQuantity, PredefUnit, Unit, deserialize_quantity};
+use indoc::indoc;
+use serde::{Deserialize, Serialize};
 use var_quantity::{unary::FirstOrderTaylor, *};
 
 #[test]
@@ -66,7 +66,7 @@ fn test_serialize_and_deserialize() {
 }
 
 // A simple function for a variable electric resistance. If one of the
-// influencing_factors is a temperature, divide it by 10 K and add it to the
+// conditions is a temperature, divide it by 10 K and add it to the
 // base value, otherwise just return the base value
 #[derive(Serialize, Deserialize, Clone)]
 struct VariableResistance {
@@ -76,8 +76,8 @@ struct VariableResistance {
 
 #[typetag::serde]
 impl IsQuantityFunction for VariableResistance {
-    fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        let quantity = influencing_factors
+    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        let quantity = conditions
             .into_iter()
             .find_map(|iq| {
                 if Unit::from(PredefUnit::Temperature) == iq.unit {
@@ -93,7 +93,7 @@ impl IsQuantityFunction for VariableResistance {
 
 #[test]
 fn test_deserialize_var_resistance() {
-    let influencing_factors = [
+    let conditions = [
         ElectricCurrent::new::<ampere>(2.0).into(),
         ThermodynamicTemperature::new::<kelvin>(20.0).into(),
     ];
@@ -108,12 +108,7 @@ fn test_deserialize_var_resistance() {
 
         let var_quantity: VarQuantity<ElectricalResistance> = serde_yaml::from_str(string).unwrap();
 
-        assert_eq!(
-            var_quantity
-                .get(influencing_factors.as_slice())
-                .get::<ohm>(),
-            4.0
-        );
+        assert_eq!(var_quantity.get(conditions.as_slice()).get::<ohm>(), 4.0);
     }
     {
         // With units
@@ -125,18 +120,13 @@ fn test_deserialize_var_resistance() {
 
         let var_quantity: VarQuantity<ElectricalResistance> = serde_yaml::from_str(string).unwrap();
 
-        assert_eq!(
-            var_quantity
-                .get(influencing_factors.as_slice())
-                .get::<ohm>(),
-            0.004
-        );
+        assert_eq!(var_quantity.get(conditions.as_slice()).get::<ohm>(), 0.004);
     }
 }
 
 #[test]
 fn test_serialize_and_deserialize_var_resistance() {
-    let influencing_factors = [
+    let conditions = [
         ElectricCurrent::new::<ampere>(2.0).into(),
         ThermodynamicTemperature::new::<kelvin>(20.0).into(),
     ];
@@ -149,11 +139,6 @@ fn test_serialize_and_deserialize_var_resistance() {
         let var_quantity: VarQuantity<ElectricalResistance> =
             serde_yaml::from_str(&string).unwrap();
 
-        assert_eq!(
-            var_quantity
-                .get(influencing_factors.as_slice())
-                .get::<ohm>(),
-            4.0
-        );
+        assert_eq!(var_quantity.get(conditions.as_slice()).get::<ohm>(), 4.0);
     }
 }

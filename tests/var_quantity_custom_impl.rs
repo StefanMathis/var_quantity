@@ -1,25 +1,20 @@
-use dyn_quantity::{DynQuantity, PredefUnit, Unit};
 use serde::{Deserialize, Serialize};
-use uom::si::{
+use var_quantity::uom::si::{
     electric_current::ampere, electric_potential::volt, f64::*, frequency::hertz,
     magnetic_flux_density::tesla, power::watt, thermodynamic_temperature::degree_celsius,
 };
+use var_quantity::{DynQuantity, PredefUnit, Unit};
 use var_quantity::{IsQuantityFunction, QuantityFunction, VarQuantity};
 
 #[test]
 fn test_var_quantity() {
-    let influencing_factors = [
+    let conditions = [
         ElectricCurrent::new::<ampere>(2.0).into(),
         ThermodynamicTemperature::new::<degree_celsius>(2.0).into(),
     ];
 
     let var_quantity = VarQuantity::Constant(Power::new::<watt>(1.0));
-    assert_eq!(
-        var_quantity
-            .get(influencing_factors.as_slice())
-            .get::<watt>(),
-        1.0
-    );
+    assert_eq!(var_quantity.get(conditions.as_slice()).get::<watt>(), 1.0);
 }
 
 #[test]
@@ -27,15 +22,15 @@ fn test_multiply_by_current() {
     #[derive(Serialize, Deserialize, Clone)]
     struct MultiplyIfCurrent(ElectricPotential);
 
-    let influencing_factors = [
+    let conditions = [
         ElectricCurrent::new::<ampere>(2.0).into(),
         ThermodynamicTemperature::new::<degree_celsius>(2.0).into(),
     ];
 
     #[typetag::serde]
     impl IsQuantityFunction for MultiplyIfCurrent {
-        fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-            let value = influencing_factors
+        fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+            let value = conditions
                 .into_iter()
                 .find_map(|iq| {
                     if Unit::from(PredefUnit::ElectricCurrent) == iq.unit {
@@ -68,12 +63,7 @@ fn test_multiply_by_current() {
     );
 
     let var_quantity: VarQuantity<Power> = VarQuantity::Function(wrapper);
-    assert_eq!(
-        var_quantity
-            .get(influencing_factors.as_slice())
-            .get::<watt>(),
-        1.0
-    );
+    assert_eq!(var_quantity.get(conditions.as_slice()).get::<watt>(), 1.0);
 
     // Test cast to dyn Any
     let function = var_quantity.function().unwrap();
@@ -89,9 +79,9 @@ fn test_readme_example() {
 
     #[typetag::serde]
     impl IsQuantityFunction for Model1 {
-        fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
             let mut b = DynQuantity::new(0.0, PredefUnit::MagneticFluxDensity);
-            for factor in influencing_factors.iter() {
+            for factor in conditions.iter() {
                 if b.unit == factor.unit {
                     b = factor.clone();
                 }
@@ -106,10 +96,10 @@ fn test_readme_example() {
 
     #[typetag::serde]
     impl IsQuantityFunction for Model2 {
-        fn call(&self, influencing_factors: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
             let mut b = DynQuantity::new(0.0, PredefUnit::MagneticFluxDensity);
             let mut f = DynQuantity::new(0.0, PredefUnit::Frequency);
-            for factor in influencing_factors.iter() {
+            for factor in conditions.iter() {
                 if b.unit == factor.unit {
                     b = factor.clone();
                 }
