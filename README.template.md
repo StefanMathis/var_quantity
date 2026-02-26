@@ -20,6 +20,10 @@ This crate is an extension of [dyn_quantity](https://crates.io/crates/dyn_quanti
 and provides an interface for defining variable quantities whose value is a
 (pure) function of other quantities.
 
+> **Feedback welcome!**  
+> Found a bug, missing docs, or have a feature request?  
+> Please open an issue on GitHub.
+
 As an example, let's consider the eddy current losses in a conductive material
 which are caused by sinusoidally changing magnetic fields. A simple model
 could only take the magnetic flux density amplitude into account and a more
