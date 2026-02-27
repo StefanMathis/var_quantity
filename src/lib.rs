@@ -63,7 +63,7 @@ impl IsQuantityFunction for Resistance {
         return DynQuantity::new(1.0 + temperature / 100.0, PredefUnit::ElectricResistance);
     }
 
-    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
@@ -183,7 +183,7 @@ impl<T: IsQuantity> QuantityFunction<T> {
             return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
         }
 
-        fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
             (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
         }
     }
@@ -239,7 +239,7 @@ impl<T: IsQuantity> QuantityFunction<T> {
             return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
         }
 
-        fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
             (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
         }
     }
@@ -271,7 +271,7 @@ impl<T: IsQuantity> QuantityFunction<T> {
             }
         }
 
-        fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
             (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
         }
     }
@@ -431,7 +431,7 @@ impl IsQuantityFunction for ResistanceFunction {
         return DynQuantity::new(1.0 + temperature / 100.0, PredefUnit::ElectricResistance);
     }
 
-    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
@@ -464,7 +464,7 @@ impl IsQuantityFunction for ResistanceFunction {
         return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
     }
 
-    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
@@ -724,7 +724,7 @@ impl<T: IsQuantityFunction + Clone> IsQuantityFunction for ClampedQuantity<T> {
         return self.call_clamped(conditions);
     }
 
-    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
@@ -770,7 +770,7 @@ impl IsQuantityFunction for Linear {
         );
     }
 
-    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }

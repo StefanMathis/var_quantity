@@ -55,7 +55,7 @@ impl IsQuantityFunction for Model1 {
         return self.0 * b.powi(2);
     }
 
-    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
@@ -80,7 +80,7 @@ impl IsQuantityFunction for Model2 {
         return self.0 * f.powi(2) * b.powi(2);
     }
 
-    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
