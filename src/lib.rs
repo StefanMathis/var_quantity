@@ -719,7 +719,7 @@ impl<T: IsQuantityFunction> ClampedQuantity<T> {
 // Only available if the serde feature is not active because deserialization of
 // generic trait objects with typetag is not possible
 #[cfg(not(feature = "serde"))]
-impl<T: IsQuantityFunction + Clone> IsQuantityFunction for ClampedQuantity<T> {
+impl<T: IsQuantityFunction + Clone + PartialEq> IsQuantityFunction for ClampedQuantity<T> {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(conditions);
     }
