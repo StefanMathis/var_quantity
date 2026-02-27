@@ -112,8 +112,16 @@ pub trait IsQuantityFunction: dyn_clone::DynClone + Sync + Send + std::any::Any 
     /**
     Returns `true` if `self` and `other` are identical and `false` otherwise.
 
-    If the implementor cannot be compared, this function should simply return
-    `false`.
+    For a [`Sized`] type which implements [`PartialEq`], this function can be
+    implemented as:
+
+    ```ignore
+    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+    }
+    ```
+
+    If `Self` cannot be compared, this function should simply return `false`.
      */
     fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool;
 }
