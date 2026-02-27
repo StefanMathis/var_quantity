@@ -68,7 +68,7 @@ fn test_serialize_and_deserialize() {
 // A simple function for a variable electric resistance. If one of the
 // conditions is a temperature, divide it by 10 K and add it to the
 // base value, otherwise just return the base value
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 struct VariableResistance {
     #[serde(deserialize_with = "deserialize_quantity")]
     base_value: ElectricalResistance,
@@ -88,6 +88,10 @@ impl IsQuantityFunction for VariableResistance {
             })
             .unwrap_or(self.base_value);
         return quantity.into();
+    }
+
+    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
 

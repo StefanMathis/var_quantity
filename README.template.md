@@ -40,7 +40,7 @@ use var_quantity::uom::si::{f64::{Power, MagneticFluxDensity, Frequency},
 // the serde feature - they are not needed if the serde feature is disabled.
 
 // Model 1: p = k * B^2
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
 struct Model1(DynQuantity<f64>);
 
 #[typetag::serde]
@@ -54,10 +54,14 @@ impl IsQuantityFunction for Model1 {
         }
         return self.0 * b.powi(2);
     }
+
+    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+    }
 }
 
 // Model 2: p = k * f^2 * B^2
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
 struct Model2(DynQuantity<f64>);
 
 #[typetag::serde]
@@ -74,6 +78,10 @@ impl IsQuantityFunction for Model2 {
             }
         }
         return self.0 * f.powi(2) * b.powi(2);
+    }
+
+    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
 

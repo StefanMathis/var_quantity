@@ -45,7 +45,7 @@ use var_quantity::{DynQuantity, PredefUnit, Unit, IsQuantityFunction};
 
 // The serde annotations are just here because the doctests of this crate use
 // the serde feature - they are not needed if the serde feature is disabled.
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
 struct Resistance;
 
 // Again, the macro annotation is just here because of the serde feature
@@ -61,6 +61,10 @@ impl IsQuantityFunction for Resistance {
             }
         }
         return DynQuantity::new(1.0 + temperature / 100.0, PredefUnit::ElectricResistance);
+    }
+
+    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
 
@@ -104,6 +108,14 @@ pub trait IsQuantityFunction: dyn_clone::DynClone + Sync + Send + std::any::Any 
     [`IsQuantityFunction`] trait docstring for examples.
     */
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64>;
+
+    /**
+    Returns `true` if `self` and `other` are identical and `false` otherwise.
+
+    If the implementor cannot be compared, this function should simply return
+    `false`.
+     */
+    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool;
 }
 
 /**
@@ -161,7 +173,7 @@ impl<T: IsQuantity> QuantityFunction<T> {
 
     // The serde annotations are just here because the doctests of this crate use
     // the serde feature - they are not needed if the serde feature is disabled.
-    #[derive(Clone, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
     struct Resistance;
 
     // Again, the macro annotation is just here because of the serde feature
@@ -169,6 +181,10 @@ impl<T: IsQuantity> QuantityFunction<T> {
     impl IsQuantityFunction for Resistance {
         fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
             return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
+        }
+
+        fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+            (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
         }
     }
 
@@ -213,7 +229,7 @@ impl<T: IsQuantity> QuantityFunction<T> {
 
     // The serde annotations are just here because the doctests of this crate use
     // the serde feature - they are not needed if the serde feature is disabled.
-    #[derive(Clone, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
     struct Resistance;
 
     // Again, the macro annotation is just here because of the serde feature
@@ -221,6 +237,10 @@ impl<T: IsQuantity> QuantityFunction<T> {
     impl IsQuantityFunction for Resistance {
         fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
             return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
+        }
+
+        fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+            (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
         }
     }
 
@@ -237,7 +257,7 @@ impl<T: IsQuantity> QuantityFunction<T> {
 
     // The serde annotations are just here because the doctests of this crate use
     // the serde feature - they are not needed if the serde feature is disabled.
-    #[derive(Clone, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
     struct Resistance;
 
     // Again, the macro annotation is just here because of the serde feature
@@ -249,6 +269,10 @@ impl<T: IsQuantity> QuantityFunction<T> {
             } else {
                 return DynQuantity::new(1.0, PredefUnit::None);
             }
+        }
+
+        fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+            (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
         }
     }
 
@@ -285,6 +309,12 @@ impl<T: IsQuantity> QuantityFunction<T> {
 impl<T: IsQuantity> std::fmt::Debug for QuantityFunction<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("QuantityFunction").finish()
+    }
+}
+
+impl<T: IsQuantity> PartialEq<QuantityFunction<T>> for QuantityFunction<T> {
+    fn eq(&self, other: &QuantityFunction<T>) -> bool {
+        return self.function.dyn_eq(&*other.function);
     }
 }
 
@@ -384,7 +414,7 @@ assert_eq!(2.0, qt_const.get(infl2));
 // For the test, the serde feature is enabled, hence it is necessary to
 // implement serialization and deserialization as well as #[typetag::serde].
 // This is not needed if the feature is not enabled.
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
 struct ResistanceFunction;
 
 #[typetag::serde]
@@ -399,6 +429,10 @@ impl IsQuantityFunction for ResistanceFunction {
             }
         }
         return DynQuantity::new(1.0 + temperature / 100.0, PredefUnit::ElectricResistance);
+    }
+
+    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
 
@@ -421,13 +455,17 @@ use var_quantity::uom::si::electrical_conductance::siemens;
 use var_quantity::uom::si::f64::{ElectricalResistance, ElectricalConductance};
 use var_quantity::{QuantityFunction, IsQuantityFunction, VarQuantity};
 
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
 struct ResistanceFunction;
 
 #[typetag::serde]
 impl IsQuantityFunction for ResistanceFunction {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
+    }
+
+    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
 
@@ -444,7 +482,7 @@ serialized / deserialized using [typetag](https://docs.rs/typetag/latest/typetag
 This is also the reason why [`IsQuantityFunction::call`] returns a
 [`DynQuantity<f64>`] instead of a generic type.
  */
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(untagged))]
 pub enum VarQuantity<T: IsQuantity> {
@@ -618,7 +656,7 @@ impl IsQuantityFunction for ClampedQuantity<YourTypeHere> {
 This approach is used for all the implementors of [`IsQuantityFunction`] provided
 with this crate.
  */
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ClampedQuantity<T: IsQuantityFunction> {
     upper_limit: f64,
@@ -678,10 +716,16 @@ impl<T: IsQuantityFunction> ClampedQuantity<T> {
     }
 }
 
+// Only available if the serde feature is not active because deserialization of
+// generic trait objects with typetag is not possible
 #[cfg(not(feature = "serde"))]
 impl<T: IsQuantityFunction + Clone> IsQuantityFunction for ClampedQuantity<T> {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(conditions);
+    }
+
+    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
 
@@ -700,7 +744,7 @@ use var_quantity::{filter_unary_function, IsQuantityFunction};
 
 // The serde annotations are just here because the doctests of this crate use
 // the serde feature - they are not needed if the serde feature is disabled.
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct Linear {
     slope: f64,
     base_value: f64,
@@ -724,6 +768,10 @@ impl IsQuantityFunction for Linear {
                     Unit::default(),
                 ),
         );
+    }
+
+    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
 ```

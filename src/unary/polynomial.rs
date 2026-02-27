@@ -188,6 +188,10 @@ impl IsQuantityFunction for Polynomial {
             || self.default_value,
         );
     }
+
+    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+    }
 }
 
 #[cfg(feature = "serde")]
@@ -219,5 +223,9 @@ mod serde_impl {
 impl IsQuantityFunction for crate::ClampedQuantity<Polynomial> {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(conditions);
+    }
+
+    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }

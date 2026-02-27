@@ -1,24 +1,28 @@
 var_quantity
 ============
 
-[`VarQuantity`]: https://docs.rs/var_quantity/0.2.1/var_quantity/enum.VarQuantity.html
-[`VarQuantity::Constant`]: https://docs.rs/var_quantity/0.2.1/var_quantity/enum.VarQuantity.html#variant.Constant
-[`VarQuantity::Function`]: https://docs.rs/var_quantity/0.2.1/var_quantity/enum.VarQuantity.html#variant.Function
-[`VarQuantity::get`]: https://docs.rs/var_quantity/0.2.1/var_quantity/enum.VarQuantity.html#method.get
-[`QuantityFunction`]: https://docs.rs/var_quantity/0.2.1/var_quantity/struct.QuantityFunction.html
-[`QuantityFunction::call`]: https://docs.rs/var_quantity/0.2.1/var_quantity/struct.QuantityFunction.html#method.call
-[`QuantityFunction::new`]: https://docs.rs/var_quantity/0.2.1/var_quantity/struct.QuantityFunction.html#method.new
-[`IsQuantityFunction`]: https://docs.rs/var_quantity/0.2.1/var_quantity/trait.IsQuantityFunction.html
-[`IsQuantityFunction::call`]: https://docs.rs/var_quantity/0.2.1/var_quantity/trait.IsQuantityFunction.html#tymethod.call
-[`filter_unary_function`]: https://docs.rs/var_quantity/0.2.1/var_quantity/fn.filter_unary_function.html
-[`Polynomial`]: https://docs.rs/var_quantity/0.2.1/var_quantity/unary/struct.Polynomial.html
-[`unary`]: https://docs.rs/var_quantity/0.2.1/var_quantity/unary.html
+[`VarQuantity`]: https://docs.rs/var_quantity/0.3.0/var_quantity/enum.VarQuantity.html
+[`VarQuantity::Constant`]: https://docs.rs/var_quantity/0.3.0/var_quantity/enum.VarQuantity.html#variant.Constant
+[`VarQuantity::Function`]: https://docs.rs/var_quantity/0.3.0/var_quantity/enum.VarQuantity.html#variant.Function
+[`VarQuantity::get`]: https://docs.rs/var_quantity/0.3.0/var_quantity/enum.VarQuantity.html#method.get
+[`QuantityFunction`]: https://docs.rs/var_quantity/0.3.0/var_quantity/struct.QuantityFunction.html
+[`QuantityFunction::call`]: https://docs.rs/var_quantity/0.3.0/var_quantity/struct.QuantityFunction.html#method.call
+[`QuantityFunction::new`]: https://docs.rs/var_quantity/0.3.0/var_quantity/struct.QuantityFunction.html#method.new
+[`IsQuantityFunction`]: https://docs.rs/var_quantity/0.3.0/var_quantity/trait.IsQuantityFunction.html
+[`IsQuantityFunction::call`]: https://docs.rs/var_quantity/0.3.0/var_quantity/trait.IsQuantityFunction.html#tymethod.call
+[`filter_unary_function`]: https://docs.rs/var_quantity/0.3.0/var_quantity/fn.filter_unary_function.html
+[`Polynomial`]: https://docs.rs/var_quantity/0.3.0/var_quantity/unary/struct.Polynomial.html
+[`unary`]: https://docs.rs/var_quantity/0.3.0/var_quantity/unary.html
 [typetag]: (https://docs.rs/typetag/latest/typetag/)
 [uom]: (https://crates.io/crates/uom)
 
 This crate is an extension of [dyn_quantity](https://crates.io/crates/dyn_quantity)
 and provides an interface for defining variable quantities whose value is a
 (pure) function of other quantities.
+
+> **Feedback welcome!**  
+> Found a bug, missing docs, or have a feature request?  
+> Please open an issue on GitHub.
 
 As an example, let's consider the eddy current losses in a conductive material
 which are caused by sinusoidally changing magnetic fields. A simple model
@@ -36,7 +40,7 @@ use var_quantity::uom::si::{f64::{Power, MagneticFluxDensity, Frequency},
 // the serde feature - they are not needed if the serde feature is disabled.
 
 // Model 1: p = k * B^2
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
 struct Model1(DynQuantity<f64>);
 
 #[typetag::serde]
@@ -50,10 +54,14 @@ impl IsQuantityFunction for Model1 {
         }
         return self.0 * b.powi(2);
     }
+
+    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+    }
 }
 
 // Model 2: p = k * f^2 * B^2
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
 struct Model2(DynQuantity<f64>);
 
 #[typetag::serde]
@@ -70,6 +78,10 @@ impl IsQuantityFunction for Model2 {
             }
         }
         return self.0 * f.powi(2) * b.powi(2);
+    }
+
+    fn eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
 
@@ -187,4 +199,4 @@ implementors of [`IsQuantityFunction`] cannot be generic.
 # Documentation
 
 The full API documentation is available at
-[https://docs.rs/var_quantity/0.2.1/var_quantity/](https://docs.rs/var_quantity/0.2.1/var_quantity/).
+[https://docs.rs/var_quantity/0.3.0/var_quantity/](https://docs.rs/var_quantity/0.3.0/var_quantity/).

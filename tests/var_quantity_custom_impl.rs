@@ -19,7 +19,7 @@ fn test_var_quantity() {
 
 #[test]
 fn test_multiply_by_current() {
-    #[derive(Serialize, Deserialize, Clone)]
+    #[derive(Serialize, Deserialize, Clone, PartialEq)]
     struct MultiplyIfCurrent(ElectricPotential);
 
     let conditions = [
@@ -41,6 +41,10 @@ fn test_multiply_by_current() {
                 })
                 .unwrap_or(DynQuantity::new(0.0, PredefUnit::ElectricCurrent));
             return DynQuantity::from(self.0) * value;
+        }
+
+        fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+            (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
         }
     }
 
@@ -74,7 +78,7 @@ fn test_multiply_by_current() {
 #[test]
 fn test_readme_example() {
     // Model 1: p = k * B^2
-    #[derive(Clone, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
     struct Model1(DynQuantity<f64>);
 
     #[typetag::serde]
@@ -88,10 +92,14 @@ fn test_readme_example() {
             }
             return self.0 * b.powi(2);
         }
+
+        fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+            (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+        }
     }
 
     // Model 2: p = k * f^2 * B^2
-    #[derive(Clone, serde::Deserialize, serde::Serialize)]
+    #[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
     struct Model2(DynQuantity<f64>);
 
     #[typetag::serde]
@@ -108,6 +116,10 @@ fn test_readme_example() {
                 }
             }
             return self.0 * f.powi(2) * b.powi(2);
+        }
+
+        fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+            (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
         }
     }
 
