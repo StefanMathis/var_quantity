@@ -4,6 +4,9 @@ An unary [`FirstOrderTaylor`] function which implements [`IsQuantityFunction`].
 
 use dyn_quantity::{DynQuantity, Unit, UnitsNotEqual};
 
+#[cfg(feature = "serde")]
+use dyn_quantity::serialize_quantity;
+
 use crate::{IsQuantityFunction, filter_unary_function};
 
 /**
@@ -42,8 +45,11 @@ This struct can be serialized / deserialized if the `serde` feature is enabled.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct FirstOrderTaylor {
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_quantity"))]
     base_value: DynQuantity<f64>,
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_quantity"))]
     slope: DynQuantity<f64>,
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_quantity"))]
     expansion_point: DynQuantity<f64>,
 }
 

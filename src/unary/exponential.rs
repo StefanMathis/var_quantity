@@ -4,6 +4,9 @@ An unary [`Exponential`] function which implements [`IsQuantityFunction`].
 
 use dyn_quantity::{DynQuantity, Unit, UnitsNotEqual};
 
+#[cfg(feature = "serde")]
+use dyn_quantity::serialize_quantity;
+
 use crate::{IsQuantityFunction, filter_unary_function};
 
 /**
@@ -14,8 +17,10 @@ An exponential term `amplitude * (exponent * x).exp` which is used to build an
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExpTerm {
     /// Amplitude of the term.
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_quantity"))]
     pub amplitude: DynQuantity<f64>,
     /// Exponent of the term
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_quantity"))]
     pub exponent: DynQuantity<f64>,
 }
 
