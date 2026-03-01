@@ -508,7 +508,7 @@ pub enum VarQuantity<T: IsQuantity> {
     through dynamic dispatch when accessing the value.
      */
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_quantity"))]
-    #[cfg_attr(feature = "serde", serde(deserialize_with = "serialize_quantity"))]
+    #[cfg_attr(feature = "serde", serde(deserialize_with = "deserialize_quantity"))]
     Constant(T),
     /**
     Catch-all variant for any non-constant behaviour. Arbitrary behaviour
