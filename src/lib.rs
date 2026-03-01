@@ -6,6 +6,7 @@ use std::{marker::PhantomData, ops::Deref};
 pub use dyn_quantity::*;
 
 use num::Complex;
+
 #[cfg(feature = "serde")]
 pub use typetag;
 
@@ -23,12 +24,20 @@ necessary to ever import this trait. It is only public to make compiler error
 messages more helpful.
  */
 pub trait IsQuantity:
-    UnitFromType + TryFrom<DynQuantity<Complex<f64>>> + Clone + std::fmt::Debug
+    UnitFromType
+    + TryFrom<DynQuantity<Complex<f64>>>
+    + Clone
+    + std::fmt::Debug
+    + Into<DynQuantity<Complex<f64>>>
 {
 }
 
 impl<T> IsQuantity for T where
-    T: UnitFromType + TryFrom<DynQuantity<Complex<f64>>> + Clone + std::fmt::Debug
+    T: UnitFromType
+        + TryFrom<DynQuantity<Complex<f64>>>
+        + Clone
+        + std::fmt::Debug
+        + Into<DynQuantity<Complex<f64>>>
 {
 }
 
@@ -498,6 +507,8 @@ pub enum VarQuantity<T: IsQuantity> {
     Optimization for the common case of a constant quantity. This avoids going
     through dynamic dispatch when accessing the value.
      */
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_quantity"))]
+    #[cfg_attr(feature = "serde", serde(deserialize_with = "serialize_quantity"))]
     Constant(T),
     /**
     Catch-all variant for any non-constant behaviour. Arbitrary behaviour

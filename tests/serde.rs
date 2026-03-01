@@ -1,3 +1,4 @@
+use dyn_quantity::uom::si::magnetic_flux_density::millitesla;
 use dyn_quantity::uom::si::{
     electric_current::ampere, electrical_resistance::ohm, electrical_resistivity::ohm_meter,
     f64::*, magnetic_flux_density::tesla, power::watt, thermodynamic_temperature::kelvin,
@@ -63,6 +64,29 @@ fn test_serialize_and_deserialize() {
         let q_serde: VarQuantity<Power> = serde_yaml::from_str(&string).expect("deserializable");
         assert_eq!(q_serde.get(&[]).get::<watt>(), 2.5);
     }
+}
+
+#[test]
+fn test_serialize_with_units() {
+    let q = VarQuantity::Constant(MagneticFluxDensity::new::<millitesla>(1.0));
+
+    let expected = indoc::indoc! {"
+        ---
+        0.001
+        "};
+    let actual = serde_yaml::to_string(&q).expect("serialization succeeds");
+    assert_eq!(expected, actual);
+
+    let expected = indoc::indoc! {"
+        ---
+        0.001 s^-2 kg A^-1
+        "};
+    let actual =
+        serialize_with_units(|| serde_yaml::to_string(&q)).expect("serialization succeeds");
+    assert_eq!(expected, actual);
+
+    let q_de = serde_yaml::from_str(&actual).expect("deserialization succeeds");
+    assert_eq!(q, q_de);
 }
 
 // A simple function for a variable electric resistance. If one of the
