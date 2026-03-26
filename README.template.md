@@ -16,9 +16,13 @@ var_quantity
 [typetag]: (https://docs.rs/typetag/latest/typetag/)
 [uom]: (https://crates.io/crates/uom)
 
+[![Documentation](https://docs.rs/var_quantity/badge.svg)](https://docs.rs/var_quantity)
+
 This crate is an extension of [dyn_quantity](https://crates.io/crates/dyn_quantity)
 and provides an interface for defining variable quantities whose value is a
 (pure) function of other quantities.
+
+The full API documentation is available at https://docs.rs/var_quantity/{{VERSION}}/var_quantity.
 
 > **Feedback welcome!**  
 > Found a bug, missing docs, or have a feature request?  
