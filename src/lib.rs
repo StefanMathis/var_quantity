@@ -1,4 +1,23 @@
-#![doc = include_str!("../README.md")]
+/*!
+[`VarQuantity`]: crate::VarQuantity
+[`VarQuantity::Constant`]: crate::VarQuantity::Constant
+[`VarQuantity::Function`]: crate::VarQuantity::Function
+[`VarQuantity::get`]: crate::VarQuantity::get
+[`QuantityFunction`]: crate::QuantityFunction
+[`QuantityFunction::call`]: crate::QuantityFunction::call
+[`QuantityFunction::new`]: crate::QuantityFunction::new
+[`IsQuantityFunction`]: crate::IsQuantityFunction
+[`IsQuantityFunction::call`]: crate::IsQuantityFunction::call
+[`filter_unary_function`]: crate::filter_unary_function
+[`Polynomial`]: crate::unary::Polynomial
+[`unary`]: crate::unary
+[typetag]: typetag
+[uom]: uom
+
+Composable serialization and deserialization for Rust structs.
+
+ */
+#![doc = include_str!("../docs/main.md")]
 #![deny(missing_docs)]
 
 use std::{marker::PhantomData, ops::Deref};

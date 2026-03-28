@@ -1,6 +1,10 @@
 var_quantity
 ============
 
+<!-- This file has ben generated with build.rs by concatenating docs/links.md,
+docs/main.md and (if available docs/end.md). Do not modify this file, instead
+modify the components. -->
+
 [`VarQuantity`]: https://docs.rs/var_quantity/0.3.3/var_quantity/enum.VarQuantity.html
 [`VarQuantity::Constant`]: https://docs.rs/var_quantity/0.3.3/var_quantity/enum.VarQuantity.html#variant.Constant
 [`VarQuantity::Function`]: https://docs.rs/var_quantity/0.3.3/var_quantity/enum.VarQuantity.html#variant.Function
@@ -22,11 +26,11 @@ This crate is an extension of [dyn_quantity](https://crates.io/crates/dyn_quanti
 and provides an interface for defining variable quantities whose value is a
 (pure) function of other quantities.
 
-The full API documentation is available at https://docs.rs/var_quantity/0.3.3/var_quantity.
+The full API documentation is available at <https://docs.rs/var_quantity/0.3.3/var_quantity>.
 
 > **Feedback welcome!**  
 > Found a bug, missing docs, or have a feature request?  
-> Please open an issue on GitHub.
+> Please open an issue on [GitHub](https://github.com/StefanMathis/var_quantity.git).
 
 As an example, let's consider the eddy current losses in a conductive material
 which are caused by sinusoidally changing magnetic fields. A simple model
@@ -199,8 +203,3 @@ All structs / enums in this crate implement serialization and deserialization.
 See the docstrings of the individual types for details. The trait objects stored
 within [`QuantityFunction`] are handled via [typetag], which is why the the
 implementors of [`IsQuantityFunction`] cannot be generic.
-
-# Documentation
-
-The full API documentation is available at
-[https://docs.rs/var_quantity/0.3.3/var_quantity/](https://docs.rs/var_quantity/0.3.3/var_quantity/).
