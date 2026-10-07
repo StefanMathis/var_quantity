@@ -5,18 +5,16 @@ var_quantity
 docs/main.md and (if available docs/end.md). Do not modify this file, instead
 modify the components. -->
 
-[`VarQuantity`]: https://docs.rs/var_quantity/0.3.3/var_quantity/enum.VarQuantity.html
-[`VarQuantity::Constant`]: https://docs.rs/var_quantity/0.3.3/var_quantity/enum.VarQuantity.html#variant.Constant
-[`VarQuantity::Function`]: https://docs.rs/var_quantity/0.3.3/var_quantity/enum.VarQuantity.html#variant.Function
-[`VarQuantity::get`]: https://docs.rs/var_quantity/0.3.3/var_quantity/enum.VarQuantity.html#method.get
-[`QuantityFunction`]: https://docs.rs/var_quantity/0.3.3/var_quantity/struct.QuantityFunction.html
-[`QuantityFunction::call`]: https://docs.rs/var_quantity/0.3.3/var_quantity/struct.QuantityFunction.html#method.call
-[`QuantityFunction::new`]: https://docs.rs/var_quantity/0.3.3/var_quantity/struct.QuantityFunction.html#method.new
-[`IsQuantityFunction`]: https://docs.rs/var_quantity/0.3.3/var_quantity/trait.IsQuantityFunction.html
-[`IsQuantityFunction::call`]: https://docs.rs/var_quantity/0.3.3/var_quantity/trait.IsQuantityFunction.html#tymethod.call
-[`filter_unary_function`]: https://docs.rs/var_quantity/0.3.3/var_quantity/fn.filter_unary_function.html
-[`Polynomial`]: https://docs.rs/var_quantity/0.3.3/var_quantity/unary/struct.Polynomial.html
-[`unary`]: https://docs.rs/var_quantity/0.3.3/var_quantity/unary.html
+[`VarQuantity`]: https://docs.rs/var_quantity/0.4.0/var_quantity/enum.VarQuantity.html
+[`VarQuantity::Constant`]: https://docs.rs/var_quantity/0.4.0/var_quantity/enum.VarQuantity.html#variant.Constant
+[`VarQuantity::Function`]: https://docs.rs/var_quantity/0.4.0/var_quantity/enum.VarQuantity.html#variant.Function
+[`VarQuantity::get`]: https://docs.rs/var_quantity/0.4.0/var_quantity/enum.VarQuantity.html#method.get
+[`VarQuantity::new`]: https://docs.rs/var_quantity/0.4.0/var_quantity/enum.VarQuantity.html#method.new
+[`QuantityFunction`]: https://docs.rs/var_quantity/0.4.0/var_quantity/struct.QuantityFunction.html
+[`QuantityFunction::call`]: https://docs.rs/var_quantity/0.4.0/var_quantity/struct.QuantityFunction.html#method.call
+[`filter_unary_function`]: https://docs.rs/var_quantity/0.4.0/var_quantity/fn.filter_unary_function.html
+[`Polynomial`]: https://docs.rs/var_quantity/0.4.0/var_quantity/unary/struct.Polynomial.html
+[`unary`]: https://docs.rs/var_quantity/0.4.0/var_quantity/unary.html
 [typetag]: (https://docs.rs/typetag/latest/typetag/)
 [uom]: (https://crates.io/crates/uom)
 
@@ -26,7 +24,7 @@ This crate is an extension of [dyn_quantity](https://crates.io/crates/dyn_quanti
 and provides an interface for defining variable quantities whose value is a
 (pure) function of other quantities.
 
-The full API documentation is available at <https://docs.rs/var_quantity/0.3.3/var_quantity>.
+The full API documentation is available at <https://docs.rs/var_quantity/0.4.0/var_quantity>.
 
 > **Feedback welcome!**  
 > Found a bug, missing docs, or have a feature request?  
@@ -39,8 +37,7 @@ sophisticated model would also consider the field frequency. Using the
 [`VarQuantity`] wrapper, both models can be used with the same interface:
 
 ```rust
-use var_quantity::{IsQuantityFunction, VarQuantity, QuantityFunction,
-                   DynQuantity, PredefUnit, Unit};
+use var_quantity::{QuantityFunction, VarQuantity, DynQuantity, PredefUnit, Unit};
 use var_quantity::uom::si::{f64::{Power, MagneticFluxDensity, Frequency}, 
     power::watt, magnetic_flux_density::tesla, frequency::hertz};
 
@@ -52,7 +49,7 @@ use var_quantity::uom::si::{f64::{Power, MagneticFluxDensity, Frequency},
 struct Model1(DynQuantity<f64>);
 
 #[typetag::serde]
-impl IsQuantityFunction for Model1 {
+impl QuantityFunction for Model1 {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let mut b = DynQuantity::new(0.0, PredefUnit::MagneticFluxDensity);
         for factor in conditions.iter() {
@@ -63,7 +60,7 @@ impl IsQuantityFunction for Model1 {
         return self.0 * b.powi(2);
     }
 
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
@@ -73,7 +70,7 @@ impl IsQuantityFunction for Model1 {
 struct Model2(DynQuantity<f64>);
 
 #[typetag::serde]
-impl IsQuantityFunction for Model2 {
+impl QuantityFunction for Model2 {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let mut b = DynQuantity::new(0.0, PredefUnit::MagneticFluxDensity);
         let mut f = DynQuantity::new(0.0, PredefUnit::Frequency);
@@ -88,7 +85,7 @@ impl IsQuantityFunction for Model2 {
         return self.0 * f.powi(2) * b.powi(2);
     }
 
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
@@ -97,9 +94,7 @@ let k = DynQuantity::new(
     1000.0,
     Unit::from(PredefUnit::Power) / Unit::from(PredefUnit::MagneticFluxDensity).powi(2),
 );
-let model1: VarQuantity<Power> = VarQuantity::Function(
-    QuantityFunction::new(Box::new(Model1(k))).expect("output unit is watt"),
-);
+let model1: VarQuantity<Power> = VarQuantity::new(Model1(k)).expect("output unit is watt");
 
 let k = DynQuantity::new(
     2.0,
@@ -107,9 +102,7 @@ let k = DynQuantity::new(
         / Unit::from(PredefUnit::MagneticFluxDensity).powi(2)
         / Unit::from(PredefUnit::Frequency).powi(2),
 );
-let model2: VarQuantity<Power> = VarQuantity::Function(
-    QuantityFunction::new(Box::new(Model2(k))).expect("output unit is watt"),
-);
+let model2: VarQuantity<Power> = VarQuantity::new(Model2(k)).expect("output unit is watt");
 
 // This function takes a variable quantity, the magnetic flux density and
 // the frequency and calculates the losses
@@ -124,35 +117,61 @@ assert_eq!(losses(&model1, b, f).get::<watt>(), 1440.0);
 assert_eq!(losses(&model2, b, f).get::<watt>(), 1152.0);
 ```
 
-The workflow to use the interface of this crate is as follows:
-- Define the relation between input and output by implementing
-[`IsQuantityFunction`] for the type representing a variable quantity (`Model1` and
-`Model2` in the previous example). The implementor is responsible for selecting
-the right quantities for his model from the give `conditions` (for
-unary functions, the crate provides [`filter_unary_function`] to simplify this)
-and also for defining sensible defaults if the needed quantity is not given
-(in the example above, the default flux density and frequency was defined to
-zero). As explained in the
-[serialization / deserialization](#serialization-and-deserialization) section,
-the types must not be generic.
-- Create an type instance and box it as a trait object. The trait object
-approach is necessary for two reasons:
-    1) Reduce generic bloat (for example, when a material type is defined using
-    multiple [`VarQuantity`] for different properties, this could lead to dozens
-    of generic parameters).
-    2) To allow for serialization and deserialization using the [typetag] crate.
-- Wrap the trait object in a [`QuantityFunction`]. Since [`IsQuantityFunction`]
-works with dynamic quantities, it needs to be tested whether the output from
-[`IsQuantityFunction::call`] can be converted to the statically typed quantity `T`
-using `TryFrom<DynQuantity<f64>>` (in the example, the quantity types provided
-by the [uom] crate were used). This check is done in the constructor 
-[`QuantityFunction::new`] and again in [`QuantityFunction::call`], see the
-docstring of [`QuantityFunction`].
-- Wrap the [`QuantityFunction`] in [`VarQuantity::Function`]. The purpose of this
-enum is to offer an optimization for the important case of a constant quantity
-via its second variant [`VarQuantity::Constant`]. Its [`VarQuantity::get`]
-method either returns the constant quantity directly or forwards to
-[`QuantityFunction::call`].
+There are two ways to create a [`VarQuantity`], depending on whether the
+quantity is constant or depends on other quantities.
+
+For a constant quantity, simply use [`VarQuantity::from`]:
+
+```rust,ignore
+let quantity = VarQuantity::from(constant);
+```
+
+This is the most common and efficient case. [`VarQuantity`] stores the
+quantity directly in its [`VarQuantity::Constant`] variant, avoiding dynamic
+dispatch when the value is accessed.
+
+For a variable quantity, implement [`QuantityFunction`] for a type describing
+the relation between the input and output quantities, and pass an instance of
+that type to [`VarQuantity::new`]:
+
+```rust,ignore
+let quantity = VarQuantity::new(function)?;
+```
+
+The workflow for defining a [`QuantityFunction`] is as follows:
+
+* Define the relation between input and output by implementing
+  [`QuantityFunction`] for the type representing the variable quantity
+  (`Model1` and `Model2` in the previous example). The implementor is
+  responsible for selecting the right quantities for its model from the given
+  `conditions` (for unary functions, the crate provides
+  [`filter_unary_function`] to simplify this) and for defining sensible
+  defaults if a needed quantity is not given. In the example above, the
+  default flux density and frequency are defined to zero. As explained in the
+  [serialization / deserialization](#serialization-and-deserialization)
+  section, the types must not be generic.
+
+* Create an instance of the function type and pass it to
+  [`VarQuantity::new`]. The function is automatically boxed as a trait object.
+  The trait object approach is necessary for two reasons:
+
+  1. To reduce generic bloat. For example, when a material type is defined
+     using multiple [`VarQuantity`]s for different properties, using concrete
+     function types could lead to dozens of generic parameters.
+  2. To allow for serialization and deserialization using the [typetag]
+     crate.
+
+  [`VarQuantity::new`] also checks that the output of the function can be
+  converted to the statically typed quantity `T` using
+  `TryFrom<DynQuantity<f64>>`. If the units do not match, the constructor
+  returns an error.
+
+* [`VarQuantity::get`] either returns the constant quantity directly or
+  evaluates the contained [`QuantityFunction`] by calling
+  [`QuantityFunction::call`]. The output is checked again to ensure that it
+  can be converted to the statically typed quantity `T`, as described in the
+  documentation of [`QuantityFunction`]. If it can't, `T::default` is returned
+  (usually a zero-value for physical quantities).
 
 # Predefined variable quantity models
 
@@ -161,8 +180,7 @@ crate. For example, model 1 from the introduction could also be realized
 using the [`Polynomial`] struct from the [`unary`] module:
 
 ```rust
-use var_quantity::{DynQuantity, PredefUnit, Unit};
-use var_quantity::{unary::Polynomial, VarQuantity, QuantityFunction};
+use var_quantity::{unary::Polynomial, VarQuantity, QuantityFunction, DynQuantity, PredefUnit, Unit};
 use var_quantity::uom::si::{f64::{Power, MagneticFluxDensity, Frequency}, 
     power::watt, magnetic_flux_density::tesla, frequency::hertz};
 
@@ -176,9 +194,7 @@ let b = DynQuantity::new(0.0, Unit::from(PredefUnit::Power) / Unit::from(PredefU
 let c = DynQuantity::new(0.0, PredefUnit::Power);
 let polynomial = Polynomial::new(vec![a, b, c]).expect("terms are checked during construction");
 
-let model1: VarQuantity<Power> = VarQuantity::Function(
-    QuantityFunction::new(Box::new(polynomial)).expect("output unit is watt"),
-);
+let model1: VarQuantity<Power> = VarQuantity::new(polynomial).expect("output unit is watt");
 
 // This function takes a variable quantity, the magnetic flux density and
 // the frequency and calculates the losses
@@ -200,6 +216,4 @@ For a full list of available models, see the following modules:
 The serde integration is gated behind the `serde` feature flag.
 
 All structs / enums in this crate implement serialization and deserialization.
-See the docstrings of the individual types for details. The trait objects stored
-within [`QuantityFunction`] are handled via [typetag], which is why the the
-implementors of [`IsQuantityFunction`] cannot be generic.
+See the docstrings of the individual types for details.

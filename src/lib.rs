@@ -3,11 +3,9 @@
 [`VarQuantity::Constant`]: crate::VarQuantity::Constant
 [`VarQuantity::Function`]: crate::VarQuantity::Function
 [`VarQuantity::get`]: crate::VarQuantity::get
+[`VarQuantity::new`]: crate::QuantityFunction::new
 [`QuantityFunction`]: crate::QuantityFunction
 [`QuantityFunction::call`]: crate::QuantityFunction::call
-[`QuantityFunction::new`]: crate::QuantityFunction::new
-[`IsQuantityFunction`]: crate::IsQuantityFunction
-[`IsQuantityFunction::call`]: crate::IsQuantityFunction::call
 [`filter_unary_function`]: crate::filter_unary_function
 [`Polynomial`]: crate::unary::Polynomial
 [`unary`]: crate::unary
@@ -19,8 +17,6 @@ Composable serialization and deserialization for Rust structs.
  */
 #![doc = include_str!("../docs/main.md")]
 #![deny(missing_docs)]
-
-use std::{marker::PhantomData, ops::Deref};
 
 pub use dyn_quantity::*;
 
@@ -42,21 +38,60 @@ and is auto-implemented for all `T` fulfilling the bounds, hence it is not
 necessary to ever import this trait. It is only public to make compiler error
 messages more helpful.
  */
-pub trait IsQuantity:
+#[cfg(not(feature = "serde"))]
+pub trait QuantityF64:
     UnitFromType
     + TryFrom<DynQuantity<Complex<f64>>>
     + Clone
     + std::fmt::Debug
     + Into<DynQuantity<Complex<f64>>>
+    + PartialEq
+    + Default
 {
 }
 
-impl<T> IsQuantity for T where
+/**
+This is a marker trait which defines trait bounds for all types `T` which can
+be used as "quantities" in [`VarQuantity<T>`]. It does not provide any methods
+and is auto-implemented for all `T` fulfilling the bounds, hence it is not
+necessary to ever import this trait. It is only public to make compiler error
+messages more helpful.
+ */
+#[cfg(feature = "serde")]
+pub trait QuantityF64:
+    UnitFromType
+    + TryFrom<DynQuantity<Complex<f64>>>
+    + Clone
+    + std::fmt::Debug
+    + Into<DynQuantity<Complex<f64>>>
+    + Serialize
+    + PartialEq
+    + Default
+{
+}
+
+#[cfg(feature = "serde")]
+impl<T> QuantityF64 for T where
     T: UnitFromType
         + TryFrom<DynQuantity<Complex<f64>>>
         + Clone
         + std::fmt::Debug
         + Into<DynQuantity<Complex<f64>>>
+        + serde::Serialize
+        + PartialEq
+        + Default
+{
+}
+
+#[cfg(not(feature = "serde"))]
+impl<T> QuantityF64 for T where
+    T: UnitFromType
+        + TryFrom<DynQuantity<Complex<f64>>>
+        + Clone
+        + std::fmt::Debug
+        + Into<DynQuantity<Complex<f64>>>
+        + PartialEq
+        + Default
 {
 }
 
@@ -69,7 +104,7 @@ value can change under the influence of other quantities. For example, a
 resistance can be a function of temperature:
 
 ```
-use var_quantity::{DynQuantity, PredefUnit, Unit, IsQuantityFunction};
+use var_quantity::{DynQuantity, PredefUnit, Unit, QuantityFunction};
 
 // The serde annotations are just here because the doctests of this crate use
 // the serde feature - they are not needed if the serde feature is disabled.
@@ -78,7 +113,7 @@ struct Resistance;
 
 // Again, the macro annotation is just here because of the serde feature
 #[typetag::serde]
-impl IsQuantityFunction for Resistance {
+impl QuantityFunction for Resistance {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let mut temperature = 0.0;
         let temperature_unit: Unit = PredefUnit::Temperature.into();
@@ -91,7 +126,7 @@ impl IsQuantityFunction for Resistance {
         return DynQuantity::new(1.0 + temperature / 100.0, PredefUnit::ElectricResistance);
     }
 
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
@@ -111,29 +146,29 @@ assert_eq!(DynQuantity::new(1.2, PredefUnit::ElectricResistance), resistance.cal
 ```
 
 An important constraint which unfortunately cannot be covered by the type
-system is that the [`DynQuantity<f64>`] returned by [`IsQuantityFunction::call`]
+system is that the [`DynQuantity<f64>`] returned by [`QuantityFunction::call`]
 must always have the same [`Unit`] field. See the [Features](#features) section
 and the docstring of [`VarQuantity`] for details.
 
 # Features
 
-When the `serde` feature is enabled, any type implementing [`IsQuantityFunction`]
+When the `serde` feature is enabled, any type implementing [`QuantityFunction`]
 can be serialized / deserialized as a trait object using the
 [typetag](https://docs.rs/typetag/latest/typetag/) crate. This has the following
 implications:
-- [`IsQuantityFunction::call`] cannot return a generic type (limitation of
+- [`QuantityFunction::call`] cannot return a generic type (limitation of
 typetag), which is why the dynamic [`DynQuantity`] type is used.
-- When implementing [`IsQuantityFunction`] for a type, the `#[typetag::serde]`
+- When implementing [`QuantityFunction`] for a type, the `#[typetag::serde]`
 annotation must be applied to the `impl` block (see example).
 
 In turn, this feature enables serialization / deserialization of [`VarQuantity`]
 without the need to specify the underlying function type in advance.
  */
 #[cfg_attr(feature = "serde", typetag::serde)]
-pub trait IsQuantityFunction: dyn_clone::DynClone + Sync + Send + std::any::Any {
+pub trait QuantityFunction: dyn_clone::DynClone + Sync + Send + std::any::Any {
     /**
     Returns a quantity as a function of `conditions`. See the
-    [`IsQuantityFunction`] trait docstring for examples.
+    [`QuantityFunction`] trait docstring for examples.
     */
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64>;
 
@@ -144,238 +179,17 @@ pub trait IsQuantityFunction: dyn_clone::DynClone + Sync + Send + std::any::Any 
     implemented as:
 
     ```ignore
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
     ```
 
     If `Self` cannot be compared, this function should simply return `false`.
      */
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool;
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool;
 }
 
-/**
-A thin wrapper around a `Box<dyn IsQuantityFunction>` trait object which provides
-some type checks for usage in [`VarQuantity`].
-
-This struct wraps a `Box<dyn IsQuantityFunction>` so it can be used in the
-[`VarQuantity::Function`] enum variant. As explained in the [`IsQuantityFunction`]
-docstring, the unit of the [`DynQuantity`] returned by [`IsQuantityFunction::call`]
-must always be the same. Even though this can unfortunately not be represented
-by the type system for reasons outlined in the trait docstring, this wrapper
-provides some checks to reduce the likelihood of wrong units:
-- When constructing the wrapper via [`QuantityFunction::new`], it runs
-[`IsQuantityFunction::call`] once with an empty slice and checks that the output unit
-matches that of [`T::unit_from_type`](UnitFromType::unit_from_type). If that is
-not the case, the construction fails and an error is returned.
-- When calling the underlying function via [`QuantityFunction::call`], it tries
-to convert the [`DynQuantity<f64>`] delivered from [`IsQuantityFunction::call`]
-into `T`. If that fails, the implementation of [`IsQuantityFunction`] violates
-the requirement outlined in the trait documentation. This is a bug, hence the
-function panics.
-
-This struct has the same memory representation as [`Box<dyn IsQuantityFunction>`].
-The underlying trait object can be retrieved directly via
-[`QuantityFunction::into_inner`] or accessed via [`AsRef::as_ref`]
-and [`Deref::deref`].
-
-# Features
-
-This struct can be serialized / deserialized if the `serde` feature is enabled.
-Since it is just a wrapper around a `Box<dyn IsQuantityFunction>` trait object,
-it serializes directly to the representation of that object and deserializes
-directly from it (it is["transparent"](https://serde.rs/container-attrs.html#transparent)).
- */
-pub struct QuantityFunction<T: IsQuantity> {
-    function: Box<dyn IsQuantityFunction>,
-    phantom: PhantomData<T>,
-}
-
-impl<T: IsQuantity> QuantityFunction<T> {
-    /**
-    Creates a new instance of `Self` and performs a type safety check by running
-    the [`IsQuantityFunction::call`] of `function` with an empty slice as
-    `conditions`. The unit of the resulting [`DynQuantity`] is then
-    compared to that created by [`T::unit_from_type`](UnitFromType::unit_from_type).
-    If they don't match, an error is returned. See the docstring of
-    [`QuantityFunction`] for more.
-
-    # Examples
-
-    ```
-    use var_quantity::{DynQuantity, PredefUnit, Unit};
-    use var_quantity::{IsQuantityFunction, QuantityFunction};
-    use var_quantity::uom::si::f64::{ElectricalResistance, ElectricCurrent};
-
-    // The serde annotations are just here because the doctests of this crate use
-    // the serde feature - they are not needed if the serde feature is disabled.
-    #[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
-    struct Resistance;
-
-    // Again, the macro annotation is just here because of the serde feature
-    #[typetag::serde]
-    impl IsQuantityFunction for Resistance {
-        fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-            return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
-        }
-
-        fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
-            (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
-        }
-    }
-
-    let resistance = Resistance {};
-
-    // The Resistance struct always returns an electric resistance. Hence the
-    // type check fails for other types
-    assert!(QuantityFunction::<ElectricalResistance>::new(Box::new(resistance.clone())).is_ok());
-    assert!(QuantityFunction::<f64>::new(Box::new(resistance.clone())).is_err());
-    assert!(QuantityFunction::<ElectricCurrent>::new(Box::new(resistance.clone())).is_err());
-    ```
-     */
-    pub fn new(function: Box<dyn IsQuantityFunction>) -> Result<Self, UnitsNotEqual> {
-        // Call the function w/o any arguments and make sure the returned
-        // DynQuantity<f64> is convertible to T
-        let actual = function.call(&[]).unit;
-        let expected = T::unit_from_type();
-        if actual != expected {
-            return Err(UnitsNotEqual(expected, actual));
-        }
-        return Ok(Self {
-            function,
-            phantom: PhantomData,
-        });
-    }
-
-    /**
-    Forwards the input to the [`IsQuantityFunction::call`] method of the wrapped
-    trait object and asserts that the returned value can be converted to `T`.
-    If that is not the case, the constraint outlined in the docstring of
-    [`QuantityFunction`] is not fulfilled and the code is invalid, therefore
-    the function panics.
-
-    # Examples
-
-    This is a valid implementation of [`IsQuantity`]: [`Unit`] is always the
-    same regardless of input.
-    ```
-    use var_quantity::{DynQuantity, PredefUnit, Unit, IsQuantityFunction, QuantityFunction};
-    use var_quantity::uom::si::electrical_resistance::ohm;
-    use var_quantity::uom::si::f64::{ElectricalResistance};
-
-    // The serde annotations are just here because the doctests of this crate use
-    // the serde feature - they are not needed if the serde feature is disabled.
-    #[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
-    struct Resistance;
-
-    // Again, the macro annotation is just here because of the serde feature
-    #[typetag::serde]
-    impl IsQuantityFunction for Resistance {
-        fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-            return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
-        }
-
-        fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
-            (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
-        }
-    }
-
-    let wrapped_resistance = QuantityFunction::<ElectricalResistance>::new(Box::new(Resistance {})).expect("units match");
-    assert_eq!(ElectricalResistance::new::<ohm>(1.0), wrapped_resistance.call(&[1.0.into()]));
-    ```
-
-    This is an invalid (and nonsensical) implementation of [`IsQuantityFunction`]
-    where the output unit changes with the number of arguments:
-    ```should_panic
-    use var_quantity::{DynQuantity, PredefUnit, Unit};
-    use var_quantity::{IsQuantityFunction, QuantityFunction};
-    use var_quantity::uom::si::f64::{ElectricalResistance};
-
-    // The serde annotations are just here because the doctests of this crate use
-    // the serde feature - they are not needed if the serde feature is disabled.
-    #[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
-    struct Resistance;
-
-    // Again, the macro annotation is just here because of the serde feature
-    #[typetag::serde]
-    impl IsQuantityFunction for Resistance {
-        fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-            if conditions.len() == 0 {
-                return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
-            } else {
-                return DynQuantity::new(1.0, PredefUnit::None);
-            }
-        }
-
-        fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
-            (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
-        }
-    }
-
-    // Construction succeeds since the test call is done with an empty slice
-    let wrapped_resistance = QuantityFunction::<ElectricalResistance>::new(Box::new(Resistance {})).expect("units match");
-
-    // ... but calling with a quantity results in a panic
-    let _ = wrapped_resistance.call(&[DynQuantity::new(1.0, PredefUnit::None)]);
-    ```
-     */
-    pub fn call(&self, conditions: &[DynQuantity<f64>]) -> T {
-        match T::try_from(self.function.call(conditions).into()) {
-            Ok(val) => val,
-            Err(_) => {
-                panic!(
-                    "conversion from DynQuantity<f64> to T failed for input {:?}.\n
-                    This means that the IsQuantityFunction trait object returns
-                    different DynQuantity<f64> depending on the input, which
-                    is a bug in the implementation of the trait object.",
-                    conditions
-                )
-            }
-        }
-    }
-
-    /**
-    Returns the underlying boxed [`IsQuantityFunction`] trait object.
-     */
-    pub fn into_inner(self) -> Box<dyn IsQuantityFunction> {
-        return self.function;
-    }
-}
-
-impl<T: IsQuantity> std::fmt::Debug for QuantityFunction<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("QuantityFunction").finish()
-    }
-}
-
-impl<T: IsQuantity> PartialEq<QuantityFunction<T>> for QuantityFunction<T> {
-    fn eq(&self, other: &QuantityFunction<T>) -> bool {
-        return self.function.dyn_eq(&*other.function);
-    }
-}
-
-impl<T: IsQuantity> Clone for QuantityFunction<T> {
-    fn clone(&self) -> Self {
-        return Self {
-            function: dyn_clone::clone_box(&*self.function),
-            phantom: PhantomData,
-        };
-    }
-}
-
-impl<T: IsQuantity> AsRef<dyn IsQuantityFunction> for QuantityFunction<T> {
-    fn as_ref(&self) -> &dyn IsQuantityFunction {
-        &*self.function
-    }
-}
-
-impl<T: IsQuantity> Deref for QuantityFunction<T> {
-    type Target = dyn IsQuantityFunction;
-
-    fn deref(&self) -> &dyn IsQuantityFunction {
-        &*self.function
-    }
-}
+dyn_clone::clone_trait_object!(QuantityFunction);
 
 /**
 A quantity whose value can either be constant or a function of one or more other
@@ -387,14 +201,14 @@ e.g. the electric resistance of a conductor. This enum serves as a general
 container for such quantities with the variant [`VarQuantity::Constant`] being
 an optimization for the important case of a constant quantitity and with the
 variant [`VarQuantity::Function`] covering all other cases via a
-[`IsQuantityFunction`] trait object (wrapped in [`QuantityFunction`]). Due to the
+[`QuantityFunction`] trait object (wrapped in [`QuantityFunction`]). Due to the
 generic design, it can also be used for dimensionless quantities which can be
 represented by a simple [`f64`].
 
 The value of the underlying quantity can be read out via the [`VarQuantity::get`]
 method. It takes a slice of [`DynQuantity`] representing influencing factors,
 for example the temperature in case of a resistance. If the enum variant is
-constant, the value field is simply cloned, otherwise the [`IsQuantityFunction::call`]
+constant, the value field is simply cloned, otherwise the [`QuantityFunction::call`]
 function is called. This returns a [`DynQuantity<f64>`], which must be convertable
 via [`TryFrom`] to `T` (enforced by trait bound). This dynamic approach is
 chosen to make this enum serializable / deserializable (see section
@@ -406,14 +220,13 @@ perspective of the type system, in actual implementations it must be infallible
 statically typed physical quantity (e.g. from the [uom](https://crates.io/crates/uom)
 library), for which [`From<DynQuantity<f64>>`] can obviously not be implemented.
 The conversion is checked once when constructing a [`QuantityFunction`] from a
-[`IsQuantityFunction`] trait object by calling [`IsQuantityFunction::call`] with
+[`QuantityFunction`] trait object by calling [`QuantityFunction::call`] with
 `conditions = &[]`, but of course it is impossible to test all
 potential values for `conditions`.
 
 It is therefore up to the provider of the trait object to make sure that the
-[`DynQuantity<f64>`] returned by [`IsQuantityFunction::call`] always has the same
-[`Unit`]. If this is not the case, the trait object has a bug and the program
-has entered an invalid state, resulting in a [`panic!`].
+[`DynQuantity<f64>`] returned by [`QuantityFunction::call`] always has the same
+[`Unit`]. If this is not the case, a default value for `T` will be returned.
 
 # Examples
 
@@ -422,10 +235,9 @@ has entered an invalid state, resulting in a [`panic!`].
 This example shows how [`VarQuantity`] integrates with both [`f64`] and
 [uom](https://crates.io/crates/uom) [`Quantity`](https://docs.rs/uom/latest/uom/si/struct.Quantity.html).
 ```
-use var_quantity::{DynQuantity, PredefUnit, Unit};
+use var_quantity::{DynQuantity, PredefUnit, Unit, QuantityFunction, VarQuantity};
 use var_quantity::uom::si::electrical_resistance::ohm;
 use var_quantity::uom::si::f64::ElectricalResistance;
-use var_quantity::{QuantityFunction, IsQuantityFunction, VarQuantity};
 
 // =============================================================================
 // Constant quantity with f64
@@ -454,7 +266,7 @@ assert_eq!(2.0, qt_const.get(infl2));
 struct ResistanceFunction;
 
 #[typetag::serde]
-impl IsQuantityFunction for ResistanceFunction {
+impl QuantityFunction for ResistanceFunction {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let mut temperature = 0.0;
         let temperature_unit: Unit = PredefUnit::Temperature.into();
@@ -467,13 +279,12 @@ impl IsQuantityFunction for ResistanceFunction {
         return DynQuantity::new(1.0 + temperature / 100.0, PredefUnit::ElectricResistance);
     }
 
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
 
-let wrapper = QuantityFunction::new(Box::new(ResistanceFunction {})).expect("type check successfull");
-let qt_var = VarQuantity::<ElectricalResistance>::Function(wrapper);
+let qt_var = VarQuantity::<ElectricalResistance>::new(ResistanceFunction {}).expect("type check successfull");
 
 // Input infl2 contains a temperature and therefore influences the resistance.
 assert_eq!(ElectricalResistance::new::<ohm>(1.0), qt_var.get(&[]));
@@ -484,99 +295,125 @@ assert_eq!(ElectricalResistance::new::<ohm>(1.2), qt_var.get(infl2));
 ## Unit mismatch
 
 This example shows a violation of the assumption that the [`DynQuantity`] returned
-by the [`IsQuantityFunction`] trait object is convertible to `T`.
+by the [`QuantityFunction`] trait object is convertible to `T`.
 ```
-use var_quantity::{DynQuantity, PredefUnit};
+use var_quantity::{DynQuantity, PredefUnit, QuantityFunction, VarQuantity};
 use var_quantity::uom::si::electrical_conductance::siemens;
 use var_quantity::uom::si::f64::{ElectricalResistance, ElectricalConductance};
-use var_quantity::{QuantityFunction, IsQuantityFunction, VarQuantity};
 
 #[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
 struct ResistanceFunction;
 
 #[typetag::serde]
-impl IsQuantityFunction for ResistanceFunction {
+impl QuantityFunction for ResistanceFunction {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
     }
 
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
 
 // Mismatch in type definition - catched during construction of QuantityFunction
-let wrapper = QuantityFunction::<ElectricalConductance>::new(Box::new(ResistanceFunction {}));
-assert!(wrapper.is_err());
+assert!(VarQuantity::<ElectricalConductance>::new(ResistanceFunction {}).is_err());
 ```
 
 # Features
 
 If the `serde` feature is activated, this enum can be serialized and
-deserialized (as untagged enum). The [`IsQuantityFunction`] trait object is
+deserialized (as untagged enum). The [`QuantityFunction`] trait object is
 serialized / deserialized using [typetag](https://docs.rs/typetag/latest/typetag/).
-This is also the reason why [`IsQuantityFunction::call`] returns a
+This is also the reason why [`QuantityFunction::call`] returns a
 [`DynQuantity<f64>`] instead of a generic type.
  */
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(untagged))]
-pub enum VarQuantity<T: IsQuantity> {
+pub enum VarQuantity<T: QuantityF64> {
     /**
-    Optimization for the common case of a constant quantity. This avoids going
-    through dynamic dispatch when accessing the value.
+    Optimization for the common case of a constant quantity. This avoids
+    dynamic dispatch when accessing the value.
      */
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_quantity"))]
     #[cfg_attr(feature = "serde", serde(deserialize_with = "deserialize_quantity"))]
     Constant(T),
     /**
-    Catch-all variant for any non-constant behaviour. Arbitrary behaviour
-    can be realized with the contained [`IsQuantityFunction`] trait object, as
-    long as the unit constraint outlined in the [`VarQuantity`] docstring is
-    upheld.
+    A quantity with arbitrary behaviour implemented by the contained
+    [`QuantityFunction`] trait object.
+
+    The output of the function must be convertible into a `T`, as outlined in the
+    [`VarQuantity`] documentation. It is discouraged to construct this variant
+    directly; use [`VarQuantity::new`] instead, which checks this constraint.
      */
-    Function(QuantityFunction<T>),
+    Function(Box<dyn QuantityFunction>),
 }
 
-impl<T: IsQuantity> VarQuantity<T> {
+impl<T: QuantityF64> std::fmt::Debug for VarQuantity<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Constant(arg0) => f.debug_tuple("Constant").field(arg0).finish(),
+            Self::Function(_) => f.debug_tuple("Function").finish(),
+        }
+    }
+}
+
+impl<T: QuantityF64> PartialEq for VarQuantity<T> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Constant(l0), Self::Constant(r0)) => l0 == r0,
+            (Self::Function(l0), Self::Function(r0)) => l0.dyn_eq(&**r0),
+            _ => false,
+        }
+    }
+}
+
+impl<T: QuantityF64> VarQuantity<T> {
     /**
-    Matches against `self` and either returns the contained value (variant
-    [`VarQuantity::Constant`]) or executes the call method of the contained
-    [`QuantityFunction`] (variant [`VarQuantity::Function`]).
+    Creates a new [`VarQuantity`] instance if the output of the given `function`
+    can be converted into `T`.
+
+    This is a convenience wrapper around the following steps:
+
+    1. Check that the output of `function` can be converted into `T` by calling the
+       function with an empty `conditions` slice. As stated in the
+       [`QuantityFunction`] trait documentation, it is assumed that the function
+       always returns quantities with the same unit.
+    2. Box `function` as a trait object.
+    3. Wrap the resulting trait object in [`VarQuantity<T>::Function`].
+
+    Due to the additional unit check, it is recommended to use this function
+    instead of directly constructing the [`VarQuantity<T>::Function`] variant.
+    */
+    pub fn new<F: QuantityFunction>(function: F) -> Result<Self, UnitsNotEqual> {
+        // Check if the function produced the correct type for "default"
+        // conditions.
+        let output = function.call(&[]);
+        if let Err(_) = T::try_from(output.into()) {
+            return Err(UnitsNotEqual(T::unit_from_type(), output.unit));
+        }
+        return Ok(Self::Function(Box::new(function)));
+    }
+
+    /**
+    Returns the contained value if `self` is [`VarQuantity::Constant`], or evaluates
+    the contained [`QuantityFunction`] if `self` is [`VarQuantity::Function`].
+
+    If the output of the [`QuantityFunction`] cannot be converted into `T`,
+    [`T::default`] is returned instead.
     */
     pub fn get(&self, conditions: &[DynQuantity<f64>]) -> T {
         match self {
             Self::Constant(val) => val.clone(),
-            Self::Function(fun) => fun.call(conditions),
+            Self::Function(fun) => T::try_from(fun.call(conditions).into()).unwrap_or_default(),
         }
-    }
-
-    /**
-    Creates a new [`VarQuantity`] instance if the output [`Unit`] of the given
-    function matches that of `T`.
-
-    This is a convenience wrapper around the following steps:
-    1) Box `fun` and cast it to a trait object.
-    2) Call [`QuantityFunction<T>::new`] on the boxed trait object.
-    3) Wrap the resulting [`QuantityFunction<T>`] in [`VarQuantity<T>::Function`].
-
-    In a similar fashion, it is also possible to skip step 1 and use the
-    corresponding [`TryFrom`] implementation (unfortunately, this is not
-    possible for the generic `F` due to colliding blanket implementations in
-    the Rust standard library).
-    */
-    pub fn try_from_quantity_function<F: IsQuantityFunction>(
-        fun: F,
-    ) -> Result<Self, UnitsNotEqual> {
-        let boxed: Box<dyn IsQuantityFunction> = Box::new(fun);
-        return boxed.try_into();
     }
 
     /**
     Returns a reference to the underlying function if `self` is a
     [`VarQuantity::Function`].
      */
-    pub fn function(&self) -> Option<&dyn IsQuantityFunction> {
+    pub fn function(&self) -> Option<&dyn QuantityFunction> {
         match self {
             VarQuantity::Constant(_) => return None,
             VarQuantity::Function(quantity_function) => return Some(quantity_function.as_ref()),
@@ -584,18 +421,15 @@ impl<T: IsQuantity> VarQuantity<T> {
     }
 }
 
-impl<T: IsQuantity> TryFrom<Box<dyn IsQuantityFunction>> for VarQuantity<T> {
-    type Error = UnitsNotEqual;
-
-    fn try_from(value: Box<dyn IsQuantityFunction>) -> Result<Self, Self::Error> {
-        let wrapper = QuantityFunction::new(value)?;
-        return Ok(Self::Function(wrapper));
+impl<T: QuantityF64> From<T> for VarQuantity<T> {
+    fn from(value: T) -> Self {
+        return Self::Constant(value);
     }
 }
 
-impl<T: IsQuantity> From<T> for VarQuantity<T> {
-    fn from(value: T) -> Self {
-        return Self::Constant(value);
+impl<T: QuantityF64> From<Box<dyn QuantityFunction>> for VarQuantity<T> {
+    fn from(value: Box<dyn QuantityFunction>) -> Self {
+        return Self::Function(value);
     }
 }
 
@@ -605,28 +439,9 @@ mod serde_impl {
 
     use super::*;
 
-    impl<T: IsQuantity> Serialize for QuantityFunction<T> {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
-        {
-            self.function.serialize(serializer)
-        }
-    }
-
-    impl<'de, T: IsQuantity> serde::Deserialize<'de> for QuantityFunction<T> {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: serde::Deserializer<'de>,
-        {
-            let v = <Box<dyn IsQuantityFunction>>::deserialize(deserializer)?;
-            QuantityFunction::new(v).map_err(serde::de::Error::custom)
-        }
-    }
-
     impl<'de, T> serde::Deserialize<'de> for VarQuantity<T>
     where
-        T: DeserializeOwned + IsQuantity,
+        T: DeserializeOwned + QuantityF64,
         <T as TryFrom<DynQuantity<Complex<f64>>>>::Error: std::fmt::Display,
     {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -659,11 +474,22 @@ mod serde_impl {
                     }
                 },
                 Err(_) => {
-                    let wrapper =
-                        QuantityFunction::deserialize(
-                            serde_value::ValueDeserializer::<D::Error>::new(content.clone()),
-                        )?;
-                    return Ok(VarQuantity::Function(wrapper));
+                    let function =
+                        Box::<dyn QuantityFunction>::deserialize(serde_value::ValueDeserializer::<
+                            D::Error,
+                        >::new(
+                            content
+                        ))
+                        .map_err(serde::de::Error::custom)?;
+                    let output = function.call(&[]);
+                    if let Err(_) = T::try_from(output.into()) {
+                        return Err(serde::de::Error::custom(UnitsNotEqual(
+                            T::unit_from_type(),
+                            output.unit,
+                        )));
+                    }
+
+                    Ok(VarQuantity::Function(function))
                 }
             }
         }
@@ -671,47 +497,46 @@ mod serde_impl {
 }
 
 /**
-A wrapper around a type implementing [`IsQuantityFunction`] trait object which
-clamps the output of [`IsQuantityFunction::call`] using the provided upper and
-lower limits.
+A wrapper around a type implementing [`QuantityFunction`] which clamps the
+output of [`QuantityFunction::call`] using the provided upper and lower limits.
 
-If the `serde` feature is not activated, it implements [`IsQuantityFunction`]
-in a generic manner and can therefore be used in a [`QuantityFunction`]. If
-`serde` is activated, it is unfortately not possible to provide a generic
-implementation due to the macro `#[typetag::serde]` not being able to deal with
-generics. As a workaround, it is possible to provide a simple custom
+If the `serde` feature is not enabled, [`ClampedQuantity`] implements
+[`QuantityFunction`] for all `T` implementing [`QuantityFunction`]. If `serde`
+is enabled, it is unfortately not possible to provide a generic implementation
+due to the macro `#[typetag::serde]` not being able to deal with
+generics. As a workaround, it is recommended to provide a simple custom
 implementation for each concrete type in your own crate:
 
 ```ignore
 #[cfg_attr(feature = "serde", typetag::serde)]
-impl IsQuantityFunction for ClampedQuantity<YourTypeHere> {
+impl QuantityFunction for ClampedQuantity<YourTypeHere> {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(conditions);
     }
 }
 ```
 
-This approach is used for all the implementors of [`IsQuantityFunction`] provided
+This approach is used for all the implementors of [`QuantityFunction`] provided
 with this crate.
  */
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct ClampedQuantity<T: IsQuantityFunction> {
+pub struct ClampedQuantity<T: QuantityFunction> {
     upper_limit: f64,
     lower_limit: f64,
     function: T,
 }
 
-impl<T: IsQuantityFunction> ClampedQuantity<T> {
+impl<T: QuantityFunction> ClampedQuantity<T> {
     /**
     Checks if `upper_limit >= lower_limit` and returns a new instance of
     [`ClampedQuantity`] if true.
     */
-    pub fn new(upper_limit: f64, lower_limit: f64, function: T) -> Result<Self, &'static str> {
+    pub fn new(upper_limit: f64, lower_limit: f64, function: T) -> Option<Self> {
         if upper_limit < lower_limit {
-            return Err("upper limit must not be smaller than the lower limit");
+            return None;
         }
-        return Ok(Self {
+        return Some(Self {
             upper_limit,
             lower_limit,
             function,
@@ -719,16 +544,16 @@ impl<T: IsQuantityFunction> ClampedQuantity<T> {
     }
 
     /**
-    Returns the underlying [`IsQuantityFunction`].
+    Returns the underlying [`QuantityFunction`].
      */
     pub fn inner(&self) -> &T {
         return &self.function;
     }
 
     /**
-    Returns the underlying [`IsQuantityFunction`] as a trait object.
+    Returns the underlying [`QuantityFunction`] as a trait object.
      */
-    pub fn inner_dyn(&self) -> &dyn IsQuantityFunction {
+    pub fn inner_dyn(&self) -> &dyn QuantityFunction {
         return &self.function;
     }
 
@@ -744,7 +569,9 @@ impl<T: IsQuantityFunction> ClampedQuantity<T> {
 
     /**
     Clamps the output value of `T::call` using the provided upper and lower
-    limits. This function is mainly here to simplify custom [`IsQuantityFunction`]
+    limits.
+
+    This function is mainly here to simplify custom [`QuantityFunction`]
     implementations, see the [`ClampedQuantity`] docstring.
      */
     pub fn call_clamped(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
@@ -757,12 +584,12 @@ impl<T: IsQuantityFunction> ClampedQuantity<T> {
 // Only available if the serde feature is not active because deserialization of
 // generic trait objects with typetag is not possible
 #[cfg(not(feature = "serde"))]
-impl<T: IsQuantityFunction + Clone + PartialEq> IsQuantityFunction for ClampedQuantity<T> {
+impl<T: QuantityFunction + Clone + PartialEq> QuantityFunction for ClampedQuantity<T> {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(conditions);
     }
 
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
@@ -770,15 +597,16 @@ impl<T: IsQuantityFunction + Clone + PartialEq> IsQuantityFunction for ClampedQu
 /**
 A helper function which filters the `conditions` for a quantity with
 the type `match_for`. If a matching quantity is found, it is used as argument
-for `F` and the result is returned. Otherwise, the result of `G()` is returned.
+for `with_matched` and the result is returned. Otherwise, the result of
+`no_match()` is returned.
 
 The main purpose of this function is to simplify writing unary functions. For
-example, the [`IsQuantityFunction::call`] implementation of a linear function
+example, the [`QuantityFunction::call`] implementation of a linear function
 can look like this:
 
 ```
 use dyn_quantity::{DynQuantity, Unit};
-use var_quantity::{filter_unary_function, IsQuantityFunction};
+use var_quantity::{filter_unary_function, QuantityFunction};
 
 // The serde annotations are just here because the doctests of this crate use
 // the serde feature - they are not needed if the serde feature is disabled.
@@ -790,7 +618,7 @@ pub struct Linear {
 
 // Again, the macro annotation is just here because of the serde feature
 #[cfg_attr(feature = "serde", typetag::serde)]
-impl IsQuantityFunction for Linear {
+impl QuantityFunction for Linear {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return filter_unary_function(
             conditions,
@@ -808,7 +636,7 @@ impl IsQuantityFunction for Linear {
         );
     }
 
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }

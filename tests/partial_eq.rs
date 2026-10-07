@@ -16,18 +16,12 @@ fn test_implementor_eq() {
         exponent: 0.0.into(),
     };
 
-    let fun1: VarQuantity<f64> = VarQuantity::try_from_quantity_function(
-        Exponential::new(vec![term0.clone(), term1.clone()]).unwrap(),
-    )
-    .unwrap();
-    let fun2: VarQuantity<f64> = VarQuantity::try_from_quantity_function(
-        Exponential::new(vec![term0.clone(), term1.clone()]).unwrap(),
-    )
-    .unwrap();
-    let fun3: VarQuantity<f64> = VarQuantity::try_from_quantity_function(
-        Exponential::new(vec![term0.clone(), term2.clone()]).unwrap(),
-    )
-    .unwrap();
+    let fun1: VarQuantity<f64> =
+        VarQuantity::new(Exponential::new(vec![term0.clone(), term1.clone()]).unwrap()).unwrap();
+    let fun2: VarQuantity<f64> =
+        VarQuantity::new(Exponential::new(vec![term0.clone(), term1.clone()]).unwrap()).unwrap();
+    let fun3: VarQuantity<f64> =
+        VarQuantity::new(Exponential::new(vec![term0.clone(), term2.clone()]).unwrap()).unwrap();
 
     assert_eq!(fun1, fun2);
     assert_ne!(fun1, fun3);
@@ -49,18 +43,12 @@ fn test_implementor_eq_units() {
         exponent: 0.0.into(),
     };
 
-    let fun1: VarQuantity<Length> = VarQuantity::try_from_quantity_function(
-        Exponential::new(vec![term0.clone(), term1.clone()]).unwrap(),
-    )
-    .unwrap();
-    let fun2: VarQuantity<Length> = VarQuantity::try_from_quantity_function(
-        Exponential::new(vec![term0.clone(), term1.clone()]).unwrap(),
-    )
-    .unwrap();
-    let fun3: VarQuantity<Length> = VarQuantity::try_from_quantity_function(
-        Exponential::new(vec![term0.clone(), term2.clone()]).unwrap(),
-    )
-    .unwrap();
+    let fun1: VarQuantity<Length> =
+        VarQuantity::new(Exponential::new(vec![term0.clone(), term1.clone()]).unwrap()).unwrap();
+    let fun2: VarQuantity<Length> =
+        VarQuantity::new(Exponential::new(vec![term0.clone(), term1.clone()]).unwrap()).unwrap();
+    let fun3: VarQuantity<Length> =
+        VarQuantity::new(Exponential::new(vec![term0.clone(), term2.clone()]).unwrap()).unwrap();
 
     assert_eq!(fun1, fun2);
     assert_ne!(fun1, fun3);

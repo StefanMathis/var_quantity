@@ -1,7 +1,7 @@
 use approx;
 use dyn_quantity::{DynQuantity, PredefUnit, Unit};
 use indoc::indoc;
-use var_quantity::{IsQuantityFunction, unary::*};
+use var_quantity::{QuantityFunction, unary::*};
 
 #[test]
 fn test_exponential() {
@@ -242,7 +242,7 @@ fn test_exponential_serde() {
             exponent: 0.0
         "};
 
-        let fun: Exponential = serde_yaml::from_str(yaml).unwrap();
+        let fun: Exponential = yaml_serde::from_str(yaml).unwrap();
 
         assert_eq!(fun.call(&[0.0.into()]).value, -1.0);
         approx::assert_abs_diff_eq!(fun.call(&[1.0.into()]).value, 11.77811, epsilon = 0.0001);
@@ -250,8 +250,8 @@ fn test_exponential_serde() {
         assert_eq!(fun.call(&[0.0.into()]).unit, PredefUnit::None.into());
 
         // Serialize again and deserialize, then run the tests again
-        let serialized = serde_yaml::to_string(&fun).unwrap();
-        let fun: Exponential = serde_yaml::from_str(&serialized).unwrap();
+        let serialized = yaml_serde::to_string(&fun).unwrap();
+        let fun: Exponential = yaml_serde::from_str(&serialized).unwrap();
 
         assert_eq!(fun.call(&[0.0.into()]).value, -1.0);
         approx::assert_abs_diff_eq!(fun.call(&[1.0.into()]).value, 11.77811, epsilon = 0.0001);
@@ -270,7 +270,7 @@ fn test_exponential_serde() {
             exponent: 0.0 / A
         "};
 
-        let fun: Exponential = serde_yaml::from_str(yaml).unwrap();
+        let fun: Exponential = yaml_serde::from_str(yaml).unwrap();
 
         // Mismatching input unit
         assert_eq!(fun.call(&[0.0.into()]).value, -1.0);
@@ -297,8 +297,8 @@ fn test_exponential_serde() {
         );
 
         // Serialize again and deserialize, then run the tests again
-        let serialized = serde_yaml::to_string(&fun).unwrap();
-        let fun: Exponential = serde_yaml::from_str(&serialized).unwrap();
+        let serialized = yaml_serde::to_string(&fun).unwrap();
+        let fun: Exponential = yaml_serde::from_str(&serialized).unwrap();
 
         // Mismatching input unit
         assert_eq!(fun.call(&[0.0.into()]).value, -1.0);
@@ -336,15 +336,15 @@ fn test_first_order_taylor_serde() {
         slope: 2.0
         expansion_point: 0.5
         "};
-        let fun: FirstOrderTaylor = serde_yaml::from_str(yaml).unwrap();
+        let fun: FirstOrderTaylor = yaml_serde::from_str(yaml).unwrap();
 
         assert_eq!(fun.call(&[0.5.into()]).value, 2.5);
         assert_eq!(fun.call(&[0.0.into()]).value, 0.0);
         assert_eq!(fun.call(&[1.5.into()]).value, 7.5);
 
         // Serialize again and deserialize, then run the tests again
-        let serialized = serde_yaml::to_string(&fun).unwrap();
-        let fun: FirstOrderTaylor = serde_yaml::from_str(&serialized).unwrap();
+        let serialized = yaml_serde::to_string(&fun).unwrap();
+        let fun: FirstOrderTaylor = yaml_serde::from_str(&serialized).unwrap();
 
         assert_eq!(fun.call(&[0.5.into()]).value, 2.5);
         assert_eq!(fun.call(&[0.0.into()]).value, 0.0);
@@ -359,7 +359,7 @@ fn test_first_order_taylor_serde() {
         slope: 2.0 / A
         expansion_point: 0.5 A
         "};
-        let fun: FirstOrderTaylor = serde_yaml::from_str(yaml).unwrap();
+        let fun: FirstOrderTaylor = yaml_serde::from_str(yaml).unwrap();
 
         assert_eq!(
             fun.call(&[DynQuantity::new(0.5, PredefUnit::ElectricCurrent)])
@@ -383,8 +383,8 @@ fn test_first_order_taylor_serde() {
         assert_eq!(fun.call(&[1.5.into()]).value, 2.5);
 
         // Serialize again and deserialize, then run the tests again
-        let serialized = serde_yaml::to_string(&fun).unwrap();
-        let fun: FirstOrderTaylor = serde_yaml::from_str(&serialized).unwrap();
+        let serialized = yaml_serde::to_string(&fun).unwrap();
+        let fun: FirstOrderTaylor = yaml_serde::from_str(&serialized).unwrap();
 
         assert_eq!(
             fun.call(&[DynQuantity::new(0.5, PredefUnit::ElectricCurrent)])
@@ -414,7 +414,7 @@ fn test_first_order_taylor_serde() {
         expansion_point: 20.0 °C
         slope: 0.393 % / K
         "};
-        let fun: FirstOrderTaylor = serde_yaml::from_str(yaml).unwrap();
+        let fun: FirstOrderTaylor = yaml_serde::from_str(yaml).unwrap();
         approx::assert_abs_diff_eq!(
             fun.call(&[DynQuantity::new(20.0, PredefUnit::Temperature)])
                 .value,
@@ -433,13 +433,13 @@ fn test_linear_serde() {
         slope: 0.5
         base_value: -3.0
         "};
-        let fun: Linear = serde_yaml::from_str(yaml).unwrap();
+        let fun: Linear = yaml_serde::from_str(yaml).unwrap();
 
         assert_eq!(fun.call(&[2.0.into()]).value, -2.0);
 
         // Serialize again and deserialize, then run the tests again
-        let serialized = serde_yaml::to_string(&fun).unwrap();
-        let fun: Linear = serde_yaml::from_str(&serialized).unwrap();
+        let serialized = yaml_serde::to_string(&fun).unwrap();
+        let fun: Linear = yaml_serde::from_str(&serialized).unwrap();
 
         assert_eq!(fun.call(&[2.0.into()]).value, -2.0);
     }
@@ -451,7 +451,7 @@ fn test_linear_serde() {
         slope: 2.0 V
         base_value: 0.5 W
         "};
-        let fun: Linear = serde_yaml::from_str(yaml).unwrap();
+        let fun: Linear = yaml_serde::from_str(yaml).unwrap();
 
         assert_eq!(
             fun.call(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
@@ -469,8 +469,8 @@ fn test_linear_serde() {
         assert_eq!(fun.call(&[2.0.into()]).value, 0.5);
 
         // Serialize again and deserialize, then run the tests again
-        let serialized = serde_yaml::to_string(&fun).unwrap();
-        let fun: Linear = serde_yaml::from_str(&serialized).unwrap();
+        let serialized = yaml_serde::to_string(&fun).unwrap();
+        let fun: Linear = yaml_serde::from_str(&serialized).unwrap();
 
         assert_eq!(
             fun.call(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
@@ -500,14 +500,14 @@ fn test_polynomial_serde() {
           - 3.0
           - 2.0
         "};
-        let fun: Polynomial = serde_yaml::from_str(yaml).unwrap();
+        let fun: Polynomial = yaml_serde::from_str(yaml).unwrap();
 
         assert_eq!(fun.call(&[2.0.into()]).value, 8.0);
         assert_eq!(fun.call(&[0.0.into()]).value, 2.0);
 
         // Serialize again and deserialize, then run the tests again
-        let serialized = serde_yaml::to_string(&fun).unwrap();
-        let fun: Polynomial = serde_yaml::from_str(&serialized).unwrap();
+        let serialized = yaml_serde::to_string(&fun).unwrap();
+        let fun: Polynomial = yaml_serde::from_str(&serialized).unwrap();
 
         assert_eq!(fun.call(&[2.0.into()]).value, 8.0);
         assert_eq!(fun.call(&[0.0.into()]).value, 2.0);
@@ -520,13 +520,13 @@ fn test_polynomial_serde() {
           - 3.0
           - 2.0
         "};
-        let fun: Polynomial = serde_yaml::from_str(yaml).unwrap();
+        let fun: Polynomial = yaml_serde::from_str(yaml).unwrap();
         assert_eq!(fun.call(&[2.0.into()]).value, 4.0);
         assert_eq!(fun.call(&[0.0.into()]).value, 2.0);
 
         // Serialize again and deserialize, then run the tests again
-        let serialized = serde_yaml::to_string(&fun).unwrap();
-        let fun: Polynomial = serde_yaml::from_str(&serialized).unwrap();
+        let serialized = yaml_serde::to_string(&fun).unwrap();
+        let fun: Polynomial = yaml_serde::from_str(&serialized).unwrap();
 
         assert_eq!(fun.call(&[2.0.into()]).value, 4.0);
         assert_eq!(fun.call(&[0.0.into()]).value, 2.0);
@@ -542,7 +542,7 @@ fn test_polynomial_serde() {
           - 2.0 m^3
         "};
 
-        let fun: Polynomial = serde_yaml::from_str(yaml).unwrap();
+        let fun: Polynomial = yaml_serde::from_str(yaml).unwrap();
 
         // Influencing factor does not have the right type
         assert_eq!(fun.call(&[2.0.into()]).value, 2.0);
@@ -559,8 +559,8 @@ fn test_polynomial_serde() {
         );
 
         // Serialize again and deserialize, then run the tests again
-        let serialized = serde_yaml::to_string(&fun).unwrap();
-        let fun: Polynomial = serde_yaml::from_str(&serialized).unwrap();
+        let serialized = yaml_serde::to_string(&fun).unwrap();
+        let fun: Polynomial = yaml_serde::from_str(&serialized).unwrap();
 
         // Influencing factor does not have the right type
         assert_eq!(fun.call(&[2.0.into()]).value, 2.0);

@@ -4,7 +4,7 @@ use var_quantity::uom::si::{
     magnetic_flux_density::tesla, power::watt, thermodynamic_temperature::degree_celsius,
 };
 use var_quantity::{DynQuantity, PredefUnit, Unit};
-use var_quantity::{IsQuantityFunction, QuantityFunction, VarQuantity};
+use var_quantity::{QuantityFunction, VarQuantity};
 
 #[test]
 fn test_var_quantity() {
@@ -28,7 +28,7 @@ fn test_multiply_by_current() {
     ];
 
     #[typetag::serde]
-    impl IsQuantityFunction for MultiplyIfCurrent {
+    impl QuantityFunction for MultiplyIfCurrent {
         fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
             let value = conditions
                 .into_iter()
@@ -43,18 +43,15 @@ fn test_multiply_by_current() {
             return DynQuantity::from(self.0) * value;
         }
 
-        fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
             (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
         }
     }
 
-    let wrapper = QuantityFunction::new(Box::new(MultiplyIfCurrent(
-        ElectricPotential::new::<volt>(0.5),
-    )))
-    .unwrap();
+    let wrapper = Box::new(MultiplyIfCurrent(ElectricPotential::new::<volt>(0.5)));
 
     // Test deref
-    fn do_nothing_ref(_function: &dyn IsQuantityFunction) {}
+    fn do_nothing_ref(_function: &dyn QuantityFunction) {}
     do_nothing_ref(&*wrapper);
     fn do_nothing_any(_function: &dyn std::any::Any) {}
     do_nothing_any(&*wrapper);
@@ -82,7 +79,7 @@ fn test_readme_example() {
     struct Model1(DynQuantity<f64>);
 
     #[typetag::serde]
-    impl IsQuantityFunction for Model1 {
+    impl QuantityFunction for Model1 {
         fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
             let mut b = DynQuantity::new(0.0, PredefUnit::MagneticFluxDensity);
             for factor in conditions.iter() {
@@ -93,7 +90,7 @@ fn test_readme_example() {
             return self.0 * b.powi(2);
         }
 
-        fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
             (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
         }
     }
@@ -103,7 +100,7 @@ fn test_readme_example() {
     struct Model2(DynQuantity<f64>);
 
     #[typetag::serde]
-    impl IsQuantityFunction for Model2 {
+    impl QuantityFunction for Model2 {
         fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
             let mut b = DynQuantity::new(0.0, PredefUnit::MagneticFluxDensity);
             let mut f = DynQuantity::new(0.0, PredefUnit::Frequency);
@@ -118,7 +115,7 @@ fn test_readme_example() {
             return self.0 * f.powi(2) * b.powi(2);
         }
 
-        fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+        fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
             (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
         }
     }
@@ -127,9 +124,7 @@ fn test_readme_example() {
         1000.0,
         Unit::from(PredefUnit::Power) / Unit::from(PredefUnit::MagneticFluxDensity).powi(2),
     );
-    let model1: VarQuantity<Power> = VarQuantity::Function(
-        QuantityFunction::new(Box::new(Model1(k))).expect("output unit is watt"),
-    );
+    let model1: VarQuantity<Power> = VarQuantity::new(Model1(k)).expect("output unit is watt");
 
     let k = DynQuantity::new(
         2.0,
@@ -137,9 +132,7 @@ fn test_readme_example() {
             / Unit::from(PredefUnit::MagneticFluxDensity).powi(2)
             / Unit::from(PredefUnit::Frequency).powi(2),
     );
-    let model2: VarQuantity<Power> = VarQuantity::Function(
-        QuantityFunction::new(Box::new(Model2(k))).expect("output unit is watt"),
-    );
+    let model2: VarQuantity<Power> = VarQuantity::new(Model2(k)).expect("output unit is watt");
 
     // This function takes a variable quantity, the magnetic flux density and
     // the frequency and calculates the losses

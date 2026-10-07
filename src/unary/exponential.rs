@@ -1,5 +1,5 @@
 /*!
-An unary [`Exponential`] function which implements [`IsQuantityFunction`].
+An unary [`Exponential`] function which implements [`QuantityFunction`].
 */
 
 use dyn_quantity::{DynQuantity, Unit, UnitsNotEqual};
@@ -7,7 +7,7 @@ use dyn_quantity::{DynQuantity, Unit, UnitsNotEqual};
 #[cfg(feature = "serde")]
 use dyn_quantity::serialize_quantity;
 
-use crate::{IsQuantityFunction, filter_unary_function};
+use crate::{QuantityFunction, filter_unary_function};
 
 /**
 An exponential term `amplitude * (exponent * x).exp` which is used to build an
@@ -32,7 +32,7 @@ An exponential function defined as a sum of [`ExpTerm`]:
 where `a` is [`ExpTerm::amplitude`] and `k` is [`ExpTerm::exponent`] of the
 respective [`ExpTerm`].
 
-This struct is meant to be used as a [`IsQuantityFunction`] trait object. The
+This struct is meant to be used as a [`QuantityFunction`] trait object. The
 unit of the influencing quantity is the inverse of the [`ExpTerm::exponent`]
 unit and the output unit is that of [`ExpTerm::amplitude`]. This means that all
 terms must have the same units for amplitude and exponent; this is checked in
@@ -60,7 +60,7 @@ impl Exponential {
 
     ```
     use dyn_quantity::{DynQuantity, PredefUnit, Unit};
-    use var_quantity::{IsQuantityFunction, unary::{ExpTerm, Exponential}};
+    use var_quantity::{QuantityFunction, unary::{ExpTerm, Exponential}};
 
     let term1 = ExpTerm {
         amplitude: DynQuantity::new(1.0, PredefUnit::Power),
@@ -140,7 +140,7 @@ impl Exponential {
 
     /**
     Returns the unit of the quantity which influences the variable quantity.
-    If none of the `conditions` in a [`IsQuantityFunction::call`]
+    If none of the `conditions` in a [`QuantityFunction::call`]
     matches this item, then `x` is assumed to be zero and the sum of amplitudes
     is returned.
 
@@ -148,7 +148,7 @@ impl Exponential {
 
     ```
     use dyn_quantity::{DynQuantity, PredefUnit};
-    use var_quantity::{IsQuantityFunction, unary::{ExpTerm, Exponential}};
+    use var_quantity::{QuantityFunction, unary::{ExpTerm, Exponential}};
     use approx;
 
     let term1 = ExpTerm {
@@ -177,11 +177,11 @@ impl Exponential {
     }
 
     /**
-    Returns the unit which will be returned from [`IsQuantityFunction::call`].
+    Returns the unit which will be returned from [`QuantityFunction::call`].
 
     ```
     use dyn_quantity::{DynQuantity, PredefUnit, Unit};
-    use var_quantity::{IsQuantityFunction, unary::{ExpTerm, Exponential}};
+    use var_quantity::{QuantityFunction, unary::{ExpTerm, Exponential}};
 
     let term1 = ExpTerm {
         amplitude: DynQuantity::new(1.0, PredefUnit::Power),
@@ -202,7 +202,7 @@ impl Exponential {
 }
 
 #[cfg_attr(feature = "serde", typetag::serde)]
-impl IsQuantityFunction for Exponential {
+impl QuantityFunction for Exponential {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return filter_unary_function(
             conditions,
@@ -224,7 +224,7 @@ impl IsQuantityFunction for Exponential {
         );
     }
 
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
@@ -255,12 +255,12 @@ mod serde_impl {
 
 #[cfg(feature = "serde")]
 #[cfg_attr(feature = "serde", typetag::serde)]
-impl IsQuantityFunction for crate::ClampedQuantity<Exponential> {
+impl QuantityFunction for crate::ClampedQuantity<Exponential> {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(conditions);
     }
 
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }

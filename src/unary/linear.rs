@@ -1,5 +1,5 @@
 /*!
-An unary [`Linear`] function which implements [`IsQuantityFunction`].
+An unary [`Linear`] function which implements [`QuantityFunction`].
 */
 
 use dyn_quantity::{DynQuantity, Unit};
@@ -7,14 +7,14 @@ use dyn_quantity::{DynQuantity, Unit};
 #[cfg(feature = "serde")]
 use dyn_quantity::serialize_quantity;
 
-use crate::{IsQuantityFunction, filter_unary_function};
+use crate::{QuantityFunction, filter_unary_function};
 
 /**
 A linear function defined via its `slope` and `base_value`:
 
 `y = slope * x + base_value`
 
-This struct is meant to be used as a [`IsQuantityFunction`] trait object. The
+This struct is meant to be used as a [`QuantityFunction`] trait object. The
 unit of the influencing quantity is `base_value`.unit / slope.unit`.
 
 # Features:
@@ -35,7 +35,7 @@ impl Linear {
 
     ```
     use dyn_quantity::{DynQuantity, PredefUnit, Unit};
-    use var_quantity::{IsQuantityFunction, unary::Linear};
+    use var_quantity::{QuantityFunction, unary::Linear};
 
     let lin = Linear::new(DynQuantity::new(-1.0, PredefUnit::Force), DynQuantity::new(2.0, PredefUnit::Torque));
     assert_eq!(lin.call(&[DynQuantity::new(5.0, PredefUnit::Length)]), DynQuantity::new(-3.0, PredefUnit::Torque))
@@ -61,7 +61,7 @@ impl Linear {
 
     /**
     Returns the unit of the quantity which influences the variable quantity.
-    If none of the `conditions` in a [`IsQuantityFunction::call`]
+    If none of the `conditions` in a [`QuantityFunction::call`]
     matches this item, then `x` is assumed to be zero and `base_value` is
     returned.
 
@@ -70,7 +70,7 @@ impl Linear {
     ```
     use std::str::FromStr;
     use dyn_quantity::{DynQuantity, PredefUnit, Unit};
-    use var_quantity::{IsQuantityFunction, unary::Linear};
+    use var_quantity::{QuantityFunction, unary::Linear};
 
     let lin = Linear::new(
         DynQuantity::from_str("0.5 ohm/K").unwrap(),
@@ -92,12 +92,12 @@ impl Linear {
     }
 
     /**
-    Returns the unit which will be returned from [`IsQuantityFunction::call`].
+    Returns the unit which will be returned from [`QuantityFunction::call`].
 
     ```
     use std::str::FromStr;
     use dyn_quantity::{DynQuantity, PredefUnit, Unit};
-    use var_quantity::{IsQuantityFunction, unary::Linear};
+    use var_quantity::{QuantityFunction, unary::Linear};
 
     let lin = Linear::new(
         DynQuantity::from_str("0.5 ohm/K").unwrap(),
@@ -113,7 +113,7 @@ impl Linear {
 }
 
 #[cfg_attr(feature = "serde", typetag::serde)]
-impl IsQuantityFunction for Linear {
+impl QuantityFunction for Linear {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return filter_unary_function(
             conditions,
@@ -130,7 +130,7 @@ impl IsQuantityFunction for Linear {
         );
     }
 
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
@@ -139,12 +139,12 @@ impl IsQuantityFunction for Linear {
 
 #[cfg(feature = "serde")]
 #[cfg_attr(feature = "serde", typetag::serde)]
-impl IsQuantityFunction for crate::ClampedQuantity<Linear> {
+impl QuantityFunction for crate::ClampedQuantity<Linear> {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(conditions);
     }
 
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }

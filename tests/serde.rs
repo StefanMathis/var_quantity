@@ -12,23 +12,23 @@ use var_quantity::{unary::FirstOrderTaylor, *};
 fn test_deserialize_constant_success() {
     {
         // No units
-        let q: VarQuantity<MagneticFluxDensity> = serde_yaml::from_str("0.001").unwrap();
+        let q: VarQuantity<MagneticFluxDensity> = yaml_serde::from_str("0.001").unwrap();
         assert_eq!(q.get(&[]).get::<tesla>(), 0.001)
     }
     {
         // With units
-        let q: VarQuantity<MagneticFluxDensity> = serde_yaml::from_str("1 mT").unwrap();
+        let q: VarQuantity<MagneticFluxDensity> = yaml_serde::from_str("1 mT").unwrap();
         assert_eq!(q.get(&[]).get::<tesla>(), 0.001)
     }
     {
         // With units
-        let q: VarQuantity<MagneticFluxDensity> = serde_yaml::from_str("1e-3 T").unwrap();
+        let q: VarQuantity<MagneticFluxDensity> = yaml_serde::from_str("1e-3 T").unwrap();
         assert_eq!(q.get(&[]).get::<tesla>(), 0.001)
     }
     {
         // With units
         let q: VarQuantity<ElectricalResistivity> =
-            serde_yaml::from_str("1/(2.0e6) Ohm*m").unwrap();
+            yaml_serde::from_str("1/(2.0e6) Ohm*m").unwrap();
         assert_eq!(q.get(&[]).get::<ohm_meter>(), 0.5e-6)
     }
 }
@@ -37,7 +37,7 @@ fn test_deserialize_constant_success() {
 fn test_deserialize_constant_fail() {
     {
         // Unit mismatch
-        assert!(serde_yaml::from_str::<VarQuantity<Power>>("1 mT").is_err());
+        assert!(yaml_serde::from_str::<VarQuantity<Power>>("1 mT").is_err());
     }
 }
 
@@ -46,9 +46,9 @@ fn test_serialize_and_deserialize() {
     {
         // Constant
         let q = VarQuantity::Constant(MagneticFluxDensity::new::<tesla>(1.0));
-        let string = serde_yaml::to_string(&q).expect("serializable");
+        let string = yaml_serde::to_string(&q).expect("serializable");
         let q_serde: VarQuantity<MagneticFluxDensity> =
-            serde_yaml::from_str(&string).expect("deserializable");
+            yaml_serde::from_str(&string).expect("deserializable");
         assert_eq!(q_serde.get(&[]).get::<tesla>(), 1.0);
     }
     {
@@ -59,9 +59,9 @@ fn test_serialize_and_deserialize() {
             DynQuantity::new(0.5, PredefUnit::ElectricCurrent),
         )
         .unwrap();
-        let q: VarQuantity<Power> = VarQuantity::try_from_quantity_function(fun).unwrap();
-        let string = serde_yaml::to_string(&q).expect("serializable");
-        let q_serde: VarQuantity<Power> = serde_yaml::from_str(&string).expect("deserializable");
+        let q: VarQuantity<Power> = VarQuantity::new(fun).unwrap();
+        let string = yaml_serde::to_string(&q).expect("serializable");
+        let q_serde: VarQuantity<Power> = yaml_serde::from_str(&string).expect("deserializable");
         assert_eq!(q_serde.get(&[]).get::<watt>(), 2.5);
     }
 }
@@ -71,21 +71,19 @@ fn test_serialize_with_units() {
     let q = VarQuantity::Constant(MagneticFluxDensity::new::<millitesla>(1.0));
 
     let expected = indoc::indoc! {"
-        ---
         0.001
         "};
-    let actual = serde_yaml::to_string(&q).expect("serialization succeeds");
+    let actual = yaml_serde::to_string(&q).expect("serialization succeeds");
     assert_eq!(expected, actual);
 
     let expected = indoc::indoc! {"
-        ---
         0.001 s^-2 kg A^-1
         "};
     let actual =
-        serialize_with_units(|| serde_yaml::to_string(&q)).expect("serialization succeeds");
+        serialize_with_units(|| yaml_serde::to_string(&q)).expect("serialization succeeds");
     assert_eq!(expected, actual);
 
-    let q_de = serde_yaml::from_str(&actual).expect("deserialization succeeds");
+    let q_de = yaml_serde::from_str(&actual).expect("deserialization succeeds");
     assert_eq!(q, q_de);
 }
 
@@ -99,7 +97,7 @@ struct VariableResistance {
 }
 
 #[typetag::serde]
-impl IsQuantityFunction for VariableResistance {
+impl QuantityFunction for VariableResistance {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let quantity = conditions
             .into_iter()
@@ -114,7 +112,7 @@ impl IsQuantityFunction for VariableResistance {
         return quantity.into();
     }
 
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
@@ -134,7 +132,7 @@ fn test_deserialize_var_resistance() {
             base_value: 2.0
         "};
 
-        let var_quantity: VarQuantity<ElectricalResistance> = serde_yaml::from_str(string).unwrap();
+        let var_quantity: VarQuantity<ElectricalResistance> = yaml_serde::from_str(string).unwrap();
 
         assert_eq!(var_quantity.get(conditions.as_slice()).get::<ohm>(), 4.0);
     }
@@ -146,7 +144,7 @@ fn test_deserialize_var_resistance() {
             base_value: 2.0 mOhm
         "};
 
-        let var_quantity: VarQuantity<ElectricalResistance> = serde_yaml::from_str(string).unwrap();
+        let var_quantity: VarQuantity<ElectricalResistance> = yaml_serde::from_str(string).unwrap();
 
         assert_eq!(var_quantity.get(conditions.as_slice()).get::<ohm>(), 0.004);
     }
@@ -162,10 +160,10 @@ fn test_serialize_and_deserialize_var_resistance() {
         let multiply_by_volt = VariableResistance {
             base_value: ElectricalResistance::new::<ohm>(2.0),
         };
-        let boxed: Box<dyn IsQuantityFunction> = Box::new(multiply_by_volt);
-        let string = serde_yaml::to_string(&boxed).unwrap();
+        let boxed: Box<dyn QuantityFunction> = Box::new(multiply_by_volt);
+        let string = yaml_serde::to_string(&boxed).unwrap();
         let var_quantity: VarQuantity<ElectricalResistance> =
-            serde_yaml::from_str(&string).unwrap();
+            yaml_serde::from_str(&string).unwrap();
 
         assert_eq!(var_quantity.get(conditions.as_slice()).get::<ohm>(), 4.0);
     }

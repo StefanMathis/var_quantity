@@ -1,5 +1,5 @@
 /*!
-An unary [`FirstOrderTaylor`] function which implements [`IsQuantityFunction`].
+An unary [`FirstOrderTaylor`] function which implements [`QuantityFunction`].
 */
 
 use dyn_quantity::{DynQuantity, Unit, UnitsNotEqual};
@@ -7,14 +7,14 @@ use dyn_quantity::{DynQuantity, Unit, UnitsNotEqual};
 #[cfg(feature = "serde")]
 use dyn_quantity::serialize_quantity;
 
-use crate::{IsQuantityFunction, filter_unary_function};
+use crate::{QuantityFunction, filter_unary_function};
 
 /**
 A first order taylor series function defined as:
 
 `y = base_value * (1 + slope*(x - expansion_point))`
 
-This struct is meant to be used as a [`IsQuantityFunction`] trait object. The
+This struct is meant to be used as a [`QuantityFunction`] trait object. The
 unit of the influencing quantity is `expansion_point`.unit`.
 
 # Examples
@@ -27,7 +27,7 @@ the electrical resistivity:
 ```
 use std::str::FromStr;
 use dyn_quantity::DynQuantity;
-use var_quantity::{IsQuantityFunction, unary::FirstOrderTaylor};
+use var_quantity::{QuantityFunction, unary::FirstOrderTaylor};
 
 // Matching units
 let fot = FirstOrderTaylor::new(
@@ -63,7 +63,7 @@ impl FirstOrderTaylor {
     ```
     use std::str::FromStr;
     use dyn_quantity::DynQuantity;
-    use var_quantity::{IsQuantityFunction, unary::FirstOrderTaylor};
+    use var_quantity::{QuantityFunction, unary::FirstOrderTaylor};
 
     // Matching units
     assert!(FirstOrderTaylor::new(
@@ -123,7 +123,7 @@ impl FirstOrderTaylor {
 
     /**
     Returns the unit of the quantity which influences the variable quantity.
-    If none of the `conditions` in a [`IsQuantityFunction::call`]
+    If none of the `conditions` in a [`QuantityFunction::call`]
     matches this item, then `x` is assumed to be zero and the base value is
     returned.
 
@@ -132,7 +132,7 @@ impl FirstOrderTaylor {
     ```
     use std::str::FromStr;
     use dyn_quantity::{DynQuantity, PredefUnit, Unit};
-    use var_quantity::{IsQuantityFunction, unary::FirstOrderTaylor};
+    use var_quantity::{QuantityFunction, unary::FirstOrderTaylor};
 
     let fot = FirstOrderTaylor::new(
         DynQuantity::from_str("1 ohm").unwrap(),
@@ -155,12 +155,12 @@ impl FirstOrderTaylor {
     }
 
     /**
-    Returns the unit which will be returned from [`IsQuantityFunction::call`].
+    Returns the unit which will be returned from [`QuantityFunction::call`].
 
     ```
     use std::str::FromStr;
     use dyn_quantity::{DynQuantity, PredefUnit, Unit};
-    use var_quantity::{IsQuantityFunction, unary::FirstOrderTaylor};
+    use var_quantity::{QuantityFunction, unary::FirstOrderTaylor};
 
     // Matching units
     let fot = FirstOrderTaylor::new(
@@ -178,7 +178,7 @@ impl FirstOrderTaylor {
 }
 
 #[cfg_attr(feature = "serde", typetag::serde)]
-impl IsQuantityFunction for FirstOrderTaylor {
+impl QuantityFunction for FirstOrderTaylor {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return filter_unary_function(
             conditions,
@@ -193,7 +193,7 @@ impl IsQuantityFunction for FirstOrderTaylor {
         );
     }
 
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
@@ -227,12 +227,12 @@ mod serde_impl {
 
 #[cfg(feature = "serde")]
 #[cfg_attr(feature = "serde", typetag::serde)]
-impl IsQuantityFunction for crate::ClampedQuantity<FirstOrderTaylor> {
+impl QuantityFunction for crate::ClampedQuantity<FirstOrderTaylor> {
     fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(conditions);
     }
 
-    fn dyn_eq(&self, other: &dyn IsQuantityFunction) -> bool {
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
 }
