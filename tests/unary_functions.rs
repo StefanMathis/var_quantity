@@ -17,9 +17,9 @@ fn test_exponential() {
         };
         let fun = Exponential::new(vec![term0, term1]).unwrap();
 
-        assert_eq!(fun.call(&[0.0.into()]).value, -1.0);
-        approx::assert_abs_diff_eq!(fun.call(&[1.0.into()]).value, 11.77811, epsilon = 0.0001);
-        approx::assert_abs_diff_eq!(fun.call(&[2.0.into()]).value, 106.1963, epsilon = 0.0001);
+        assert_eq!(fun.eval(&[0.0.into()]).value, -1.0);
+        approx::assert_abs_diff_eq!(fun.eval(&[1.0.into()]).value, 11.77811, epsilon = 0.0001);
+        approx::assert_abs_diff_eq!(fun.eval(&[2.0.into()]).value, 106.1963, epsilon = 0.0001);
     }
 
     // With units
@@ -37,18 +37,18 @@ fn test_exponential() {
 
         // Matching unit
         assert_eq!(
-            fun.call(&[DynQuantity::new(0.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(0.0, PredefUnit::ElectricCurrent)])
                 .value,
             -1.0
         );
         approx::assert_abs_diff_eq!(
-            fun.call(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
                 .value,
             11.77811,
             epsilon = 0.0001
         );
         approx::assert_abs_diff_eq!(
-            fun.call(&[DynQuantity::new(2.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(2.0, PredefUnit::ElectricCurrent)])
                 .value,
             106.1963,
             epsilon = 0.0001
@@ -61,9 +61,9 @@ fn test_first_order_taylor() {
     // No units
     {
         let fun = FirstOrderTaylor::new(2.5.into(), 2.0.into(), 0.5.into()).unwrap();
-        assert_eq!(fun.call(&[0.5.into()]).value, 2.5);
-        assert_eq!(fun.call(&[0.0.into()]).value, 0.0);
-        assert_eq!(fun.call(&[1.5.into()]).value, 7.5);
+        assert_eq!(fun.eval(&[0.5.into()]).value, 2.5);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 0.0);
+        assert_eq!(fun.eval(&[1.5.into()]).value, 7.5);
     }
 
     // With units
@@ -76,25 +76,25 @@ fn test_first_order_taylor() {
         .unwrap();
 
         assert_eq!(
-            fun.call(&[DynQuantity::new(0.5, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(0.5, PredefUnit::ElectricCurrent)])
                 .value,
             2.5
         );
         assert_eq!(
-            fun.call(&[DynQuantity::new(0.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(0.0, PredefUnit::ElectricCurrent)])
                 .value,
             0.0
         );
         assert_eq!(
-            fun.call(&[DynQuantity::new(1.5, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(1.5, PredefUnit::ElectricCurrent)])
                 .value,
             7.5
         );
 
         // Input type does not match influencing quantity -> return base value
-        assert_eq!(fun.call(&[0.5.into()]).value, 2.5);
-        assert_eq!(fun.call(&[0.0.into()]).value, 2.5);
-        assert_eq!(fun.call(&[1.5.into()]).value, 2.5);
+        assert_eq!(fun.eval(&[0.5.into()]).value, 2.5);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 2.5);
+        assert_eq!(fun.eval(&[1.5.into()]).value, 2.5);
     }
 
     // Unit mismatch
@@ -131,7 +131,7 @@ fn test_linear() {
     // No units
     {
         let fun = Linear::new(0.5.into(), (-3.0).into());
-        assert_eq!(fun.call(&[2.0.into()]).value, -2.0);
+        assert_eq!(fun.eval(&[2.0.into()]).value, -2.0);
     }
 
     // With units
@@ -142,19 +142,19 @@ fn test_linear() {
         );
 
         assert_eq!(
-            fun.call(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
                 .value,
             2.5
         );
         assert_eq!(
-            fun.call(&[DynQuantity::new(2.5, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(2.5, PredefUnit::ElectricCurrent)])
                 .value,
             5.5
         );
 
         // Input type does not match influencing quantity -> return base value
-        assert_eq!(fun.call(&[1.0.into()]).value, 0.5);
-        assert_eq!(fun.call(&[2.0.into()]).value, 0.5);
+        assert_eq!(fun.eval(&[1.0.into()]).value, 0.5);
+        assert_eq!(fun.eval(&[2.0.into()]).value, 0.5);
     }
 }
 
@@ -164,13 +164,13 @@ fn test_polynomial() {
     {
         // 3.0x + 2.0
         let fun = Polynomial::new(vec![3.0.into(), 2.0.into()]).unwrap();
-        assert_eq!(fun.call(&[2.0.into()]).value, 8.0);
-        assert_eq!(fun.call(&[0.0.into()]).value, 2.0);
+        assert_eq!(fun.eval(&[2.0.into()]).value, 8.0);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 2.0);
 
         // -1.0x² + 3.0x + 2.0
         let fun = Polynomial::new(vec![(-1.0).into(), 3.0.into(), 2.0.into()]).unwrap();
-        assert_eq!(fun.call(&[2.0.into()]).value, 4.0);
-        assert_eq!(fun.call(&[0.0.into()]).value, 2.0);
+        assert_eq!(fun.eval(&[2.0.into()]).value, 4.0);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 2.0);
     }
 
     // With units
@@ -183,16 +183,16 @@ fn test_polynomial() {
         .unwrap();
 
         // Influencing factor does not have the right type
-        assert_eq!(fun.call(&[2.0.into()]).value, 2.0);
-        assert_eq!(fun.call(&[0.0.into()]).value, 2.0);
+        assert_eq!(fun.eval(&[2.0.into()]).value, 2.0);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 2.0);
 
         // Influencing factor has the right type (length)
         assert_eq!(
-            fun.call(&[DynQuantity::new(2.0, PredefUnit::Length)]).value,
+            fun.eval(&[DynQuantity::new(2.0, PredefUnit::Length)]).value,
             4.0
         );
         assert_eq!(
-            fun.call(&[DynQuantity::new(0.0, PredefUnit::Length)]).value,
+            fun.eval(&[DynQuantity::new(0.0, PredefUnit::Length)]).value,
             2.0
         );
     }
@@ -244,19 +244,19 @@ fn test_exponential_serde() {
 
         let fun: Exponential = yaml_serde::from_str(yaml).unwrap();
 
-        assert_eq!(fun.call(&[0.0.into()]).value, -1.0);
-        approx::assert_abs_diff_eq!(fun.call(&[1.0.into()]).value, 11.77811, epsilon = 0.0001);
-        approx::assert_abs_diff_eq!(fun.call(&[2.0.into()]).value, 106.1963, epsilon = 0.0001);
-        assert_eq!(fun.call(&[0.0.into()]).unit, PredefUnit::None.into());
+        assert_eq!(fun.eval(&[0.0.into()]).value, -1.0);
+        approx::assert_abs_diff_eq!(fun.eval(&[1.0.into()]).value, 11.77811, epsilon = 0.0001);
+        approx::assert_abs_diff_eq!(fun.eval(&[2.0.into()]).value, 106.1963, epsilon = 0.0001);
+        assert_eq!(fun.eval(&[0.0.into()]).unit, PredefUnit::None.into());
 
         // Serialize again and deserialize, then run the tests again
         let serialized = yaml_serde::to_string(&fun).unwrap();
         let fun: Exponential = yaml_serde::from_str(&serialized).unwrap();
 
-        assert_eq!(fun.call(&[0.0.into()]).value, -1.0);
-        approx::assert_abs_diff_eq!(fun.call(&[1.0.into()]).value, 11.77811, epsilon = 0.0001);
-        approx::assert_abs_diff_eq!(fun.call(&[2.0.into()]).value, 106.1963, epsilon = 0.0001);
-        assert_eq!(fun.call(&[0.0.into()]).unit, PredefUnit::None.into());
+        assert_eq!(fun.eval(&[0.0.into()]).value, -1.0);
+        approx::assert_abs_diff_eq!(fun.eval(&[1.0.into()]).value, 11.77811, epsilon = 0.0001);
+        approx::assert_abs_diff_eq!(fun.eval(&[2.0.into()]).value, 106.1963, epsilon = 0.0001);
+        assert_eq!(fun.eval(&[0.0.into()]).unit, PredefUnit::None.into());
     }
 
     // With units
@@ -273,24 +273,24 @@ fn test_exponential_serde() {
         let fun: Exponential = yaml_serde::from_str(yaml).unwrap();
 
         // Mismatching input unit
-        assert_eq!(fun.call(&[0.0.into()]).value, -1.0);
-        assert_eq!(fun.call(&[1.0.into()]).value, -1.0);
-        assert_eq!(fun.call(&[2.0.into()]).value, -1.0);
+        assert_eq!(fun.eval(&[0.0.into()]).value, -1.0);
+        assert_eq!(fun.eval(&[1.0.into()]).value, -1.0);
+        assert_eq!(fun.eval(&[2.0.into()]).value, -1.0);
 
         // Matching unit
         assert_eq!(
-            fun.call(&[DynQuantity::new(0.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(0.0, PredefUnit::ElectricCurrent)])
                 .value,
             -1.0
         );
         approx::assert_abs_diff_eq!(
-            fun.call(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
                 .value,
             11.77811,
             epsilon = 0.0001
         );
         approx::assert_abs_diff_eq!(
-            fun.call(&[DynQuantity::new(2.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(2.0, PredefUnit::ElectricCurrent)])
                 .value,
             106.1963,
             epsilon = 0.0001
@@ -301,24 +301,24 @@ fn test_exponential_serde() {
         let fun: Exponential = yaml_serde::from_str(&serialized).unwrap();
 
         // Mismatching input unit
-        assert_eq!(fun.call(&[0.0.into()]).value, -1.0);
-        assert_eq!(fun.call(&[1.0.into()]).value, -1.0);
-        assert_eq!(fun.call(&[2.0.into()]).value, -1.0);
+        assert_eq!(fun.eval(&[0.0.into()]).value, -1.0);
+        assert_eq!(fun.eval(&[1.0.into()]).value, -1.0);
+        assert_eq!(fun.eval(&[2.0.into()]).value, -1.0);
 
         // Matching unit
         assert_eq!(
-            fun.call(&[DynQuantity::new(0.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(0.0, PredefUnit::ElectricCurrent)])
                 .value,
             -1.0
         );
         approx::assert_abs_diff_eq!(
-            fun.call(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
                 .value,
             11.77811,
             epsilon = 0.0001
         );
         approx::assert_abs_diff_eq!(
-            fun.call(&[DynQuantity::new(2.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(2.0, PredefUnit::ElectricCurrent)])
                 .value,
             106.1963,
             epsilon = 0.0001
@@ -338,17 +338,17 @@ fn test_first_order_taylor_serde() {
         "};
         let fun: FirstOrderTaylor = yaml_serde::from_str(yaml).unwrap();
 
-        assert_eq!(fun.call(&[0.5.into()]).value, 2.5);
-        assert_eq!(fun.call(&[0.0.into()]).value, 0.0);
-        assert_eq!(fun.call(&[1.5.into()]).value, 7.5);
+        assert_eq!(fun.eval(&[0.5.into()]).value, 2.5);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 0.0);
+        assert_eq!(fun.eval(&[1.5.into()]).value, 7.5);
 
         // Serialize again and deserialize, then run the tests again
         let serialized = yaml_serde::to_string(&fun).unwrap();
         let fun: FirstOrderTaylor = yaml_serde::from_str(&serialized).unwrap();
 
-        assert_eq!(fun.call(&[0.5.into()]).value, 2.5);
-        assert_eq!(fun.call(&[0.0.into()]).value, 0.0);
-        assert_eq!(fun.call(&[1.5.into()]).value, 7.5);
+        assert_eq!(fun.eval(&[0.5.into()]).value, 2.5);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 0.0);
+        assert_eq!(fun.eval(&[1.5.into()]).value, 7.5);
     }
 
     // With units
@@ -362,50 +362,50 @@ fn test_first_order_taylor_serde() {
         let fun: FirstOrderTaylor = yaml_serde::from_str(yaml).unwrap();
 
         assert_eq!(
-            fun.call(&[DynQuantity::new(0.5, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(0.5, PredefUnit::ElectricCurrent)])
                 .value,
             2.5
         );
         assert_eq!(
-            fun.call(&[DynQuantity::new(0.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(0.0, PredefUnit::ElectricCurrent)])
                 .value,
             0.0
         );
         assert_eq!(
-            fun.call(&[DynQuantity::new(1.5, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(1.5, PredefUnit::ElectricCurrent)])
                 .value,
             7.5
         );
 
         // Input type does not match influencing quantity -> return base value
-        assert_eq!(fun.call(&[0.5.into()]).value, 2.5);
-        assert_eq!(fun.call(&[0.0.into()]).value, 2.5);
-        assert_eq!(fun.call(&[1.5.into()]).value, 2.5);
+        assert_eq!(fun.eval(&[0.5.into()]).value, 2.5);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 2.5);
+        assert_eq!(fun.eval(&[1.5.into()]).value, 2.5);
 
         // Serialize again and deserialize, then run the tests again
         let serialized = yaml_serde::to_string(&fun).unwrap();
         let fun: FirstOrderTaylor = yaml_serde::from_str(&serialized).unwrap();
 
         assert_eq!(
-            fun.call(&[DynQuantity::new(0.5, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(0.5, PredefUnit::ElectricCurrent)])
                 .value,
             2.5
         );
         assert_eq!(
-            fun.call(&[DynQuantity::new(0.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(0.0, PredefUnit::ElectricCurrent)])
                 .value,
             0.0
         );
         assert_eq!(
-            fun.call(&[DynQuantity::new(1.5, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(1.5, PredefUnit::ElectricCurrent)])
                 .value,
             7.5
         );
 
         // Input type does not match influencing quantity -> return base value
-        assert_eq!(fun.call(&[0.5.into()]).value, 2.5);
-        assert_eq!(fun.call(&[0.0.into()]).value, 2.5);
-        assert_eq!(fun.call(&[1.5.into()]).value, 2.5);
+        assert_eq!(fun.eval(&[0.5.into()]).value, 2.5);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 2.5);
+        assert_eq!(fun.eval(&[1.5.into()]).value, 2.5);
     }
     {
         let yaml = indoc! {"
@@ -416,7 +416,7 @@ fn test_first_order_taylor_serde() {
         "};
         let fun: FirstOrderTaylor = yaml_serde::from_str(yaml).unwrap();
         approx::assert_abs_diff_eq!(
-            fun.call(&[DynQuantity::new(20.0, PredefUnit::Temperature)])
+            fun.eval(&[DynQuantity::new(20.0, PredefUnit::Temperature)])
                 .value,
             0.0,
             epsilon = 1e-3
@@ -435,13 +435,13 @@ fn test_linear_serde() {
         "};
         let fun: Linear = yaml_serde::from_str(yaml).unwrap();
 
-        assert_eq!(fun.call(&[2.0.into()]).value, -2.0);
+        assert_eq!(fun.eval(&[2.0.into()]).value, -2.0);
 
         // Serialize again and deserialize, then run the tests again
         let serialized = yaml_serde::to_string(&fun).unwrap();
         let fun: Linear = yaml_serde::from_str(&serialized).unwrap();
 
-        assert_eq!(fun.call(&[2.0.into()]).value, -2.0);
+        assert_eq!(fun.eval(&[2.0.into()]).value, -2.0);
     }
 
     // With units
@@ -454,38 +454,38 @@ fn test_linear_serde() {
         let fun: Linear = yaml_serde::from_str(yaml).unwrap();
 
         assert_eq!(
-            fun.call(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
                 .value,
             2.5
         );
         assert_eq!(
-            fun.call(&[DynQuantity::new(2.5, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(2.5, PredefUnit::ElectricCurrent)])
                 .value,
             5.5
         );
 
         // Input type does not match influencing quantity -> return base value
-        assert_eq!(fun.call(&[1.0.into()]).value, 0.5);
-        assert_eq!(fun.call(&[2.0.into()]).value, 0.5);
+        assert_eq!(fun.eval(&[1.0.into()]).value, 0.5);
+        assert_eq!(fun.eval(&[2.0.into()]).value, 0.5);
 
         // Serialize again and deserialize, then run the tests again
         let serialized = yaml_serde::to_string(&fun).unwrap();
         let fun: Linear = yaml_serde::from_str(&serialized).unwrap();
 
         assert_eq!(
-            fun.call(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
                 .value,
             2.5
         );
         assert_eq!(
-            fun.call(&[DynQuantity::new(2.5, PredefUnit::ElectricCurrent)])
+            fun.eval(&[DynQuantity::new(2.5, PredefUnit::ElectricCurrent)])
                 .value,
             5.5
         );
 
         // Input type does not match influencing quantity -> return base value
-        assert_eq!(fun.call(&[1.0.into()]).value, 0.5);
-        assert_eq!(fun.call(&[2.0.into()]).value, 0.5);
+        assert_eq!(fun.eval(&[1.0.into()]).value, 0.5);
+        assert_eq!(fun.eval(&[2.0.into()]).value, 0.5);
     }
 }
 
@@ -502,15 +502,15 @@ fn test_polynomial_serde() {
         "};
         let fun: Polynomial = yaml_serde::from_str(yaml).unwrap();
 
-        assert_eq!(fun.call(&[2.0.into()]).value, 8.0);
-        assert_eq!(fun.call(&[0.0.into()]).value, 2.0);
+        assert_eq!(fun.eval(&[2.0.into()]).value, 8.0);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 2.0);
 
         // Serialize again and deserialize, then run the tests again
         let serialized = yaml_serde::to_string(&fun).unwrap();
         let fun: Polynomial = yaml_serde::from_str(&serialized).unwrap();
 
-        assert_eq!(fun.call(&[2.0.into()]).value, 8.0);
-        assert_eq!(fun.call(&[0.0.into()]).value, 2.0);
+        assert_eq!(fun.eval(&[2.0.into()]).value, 8.0);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 2.0);
 
         // -1.0x² + 3.0x + 2.0
         let yaml = indoc! {"
@@ -521,15 +521,15 @@ fn test_polynomial_serde() {
           - 2.0
         "};
         let fun: Polynomial = yaml_serde::from_str(yaml).unwrap();
-        assert_eq!(fun.call(&[2.0.into()]).value, 4.0);
-        assert_eq!(fun.call(&[0.0.into()]).value, 2.0);
+        assert_eq!(fun.eval(&[2.0.into()]).value, 4.0);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 2.0);
 
         // Serialize again and deserialize, then run the tests again
         let serialized = yaml_serde::to_string(&fun).unwrap();
         let fun: Polynomial = yaml_serde::from_str(&serialized).unwrap();
 
-        assert_eq!(fun.call(&[2.0.into()]).value, 4.0);
-        assert_eq!(fun.call(&[0.0.into()]).value, 2.0);
+        assert_eq!(fun.eval(&[2.0.into()]).value, 4.0);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 2.0);
     }
 
     // With units
@@ -545,16 +545,16 @@ fn test_polynomial_serde() {
         let fun: Polynomial = yaml_serde::from_str(yaml).unwrap();
 
         // Influencing factor does not have the right type
-        assert_eq!(fun.call(&[2.0.into()]).value, 2.0);
-        assert_eq!(fun.call(&[0.0.into()]).value, 2.0);
+        assert_eq!(fun.eval(&[2.0.into()]).value, 2.0);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 2.0);
 
         // Influencing factor has the right type (length)
         assert_eq!(
-            fun.call(&[DynQuantity::new(2.0, PredefUnit::Length)]).value,
+            fun.eval(&[DynQuantity::new(2.0, PredefUnit::Length)]).value,
             4.0
         );
         assert_eq!(
-            fun.call(&[DynQuantity::new(0.0, PredefUnit::Length)]).value,
+            fun.eval(&[DynQuantity::new(0.0, PredefUnit::Length)]).value,
             2.0
         );
 
@@ -563,16 +563,16 @@ fn test_polynomial_serde() {
         let fun: Polynomial = yaml_serde::from_str(&serialized).unwrap();
 
         // Influencing factor does not have the right type
-        assert_eq!(fun.call(&[2.0.into()]).value, 2.0);
-        assert_eq!(fun.call(&[0.0.into()]).value, 2.0);
+        assert_eq!(fun.eval(&[2.0.into()]).value, 2.0);
+        assert_eq!(fun.eval(&[0.0.into()]).value, 2.0);
 
         // Influencing factor has the right type (length)
         assert_eq!(
-            fun.call(&[DynQuantity::new(2.0, PredefUnit::Length)]).value,
+            fun.eval(&[DynQuantity::new(2.0, PredefUnit::Length)]).value,
             4.0
         );
         assert_eq!(
-            fun.call(&[DynQuantity::new(0.0, PredefUnit::Length)]).value,
+            fun.eval(&[DynQuantity::new(0.0, PredefUnit::Length)]).value,
             2.0
         );
     }

@@ -29,7 +29,7 @@ fn test_multiply_by_current() {
 
     #[typetag::serde]
     impl QuantityFunction for MultiplyIfCurrent {
-        fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
             let value = conditions
                 .into_iter()
                 .find_map(|iq| {
@@ -80,7 +80,7 @@ fn test_readme_example() {
 
     #[typetag::serde]
     impl QuantityFunction for Model1 {
-        fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
             let mut b = DynQuantity::new(0.0, PredefUnit::MagneticFluxDensity);
             for factor in conditions.iter() {
                 if b.unit == factor.unit {
@@ -101,7 +101,7 @@ fn test_readme_example() {
 
     #[typetag::serde]
     impl QuantityFunction for Model2 {
-        fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
             let mut b = DynQuantity::new(0.0, PredefUnit::MagneticFluxDensity);
             let mut f = DynQuantity::new(0.0, PredefUnit::Frequency);
             for factor in conditions.iter() {

@@ -139,13 +139,13 @@ impl Polynomial {
     let poly = Polynomial::new(vec![a, b, c]).expect("terms are checked during construction");
 
     // No match of any input unit with influencing_factor_unit -> Base value
-    assert_eq!(poly.call(&[]).value, 3.0);
+    assert_eq!(poly.eval(&[]).value, 3.0);
 
     // A match -> Use the corresponding quantity function as x
     let qt1 = DynQuantity::new(3.0, poly.influencing_factor_unit()); // <- Matches
     let qt2 = DynQuantity::new(-2.0, PredefUnit::Force);
 
-    assert_eq!(poly.call(&[qt1, qt2]).value, 22.5);
+    assert_eq!(poly.eval(&[qt1, qt2]).value, 22.5);
     ```
     */
     pub fn influencing_factor_unit(&self) -> Unit {
@@ -176,7 +176,7 @@ impl Polynomial {
 
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl QuantityFunction for Polynomial {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return filter_unary_function(
             conditions,
             self.influencing_factor_unit,
@@ -191,6 +191,11 @@ impl QuantityFunction for Polynomial {
 
     fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+    }
+
+    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
+        self.coefficients.iter_mut().for_each(|c| *c = *c * value);
+        true
     }
 }
 
@@ -221,11 +226,15 @@ mod serde_impl {
 #[cfg(feature = "serde")]
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl QuantityFunction for crate::ClampedQuantity<Polynomial> {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(conditions);
     }
 
     fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+    }
+
+    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
+        self.function.mul(value)
     }
 }

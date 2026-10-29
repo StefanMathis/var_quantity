@@ -98,7 +98,7 @@ struct VariableResistance {
 
 #[typetag::serde]
 impl QuantityFunction for VariableResistance {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let quantity = conditions
             .into_iter()
             .find_map(|iq| {

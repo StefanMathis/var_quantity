@@ -18,6 +18,8 @@ Composable serialization and deserialization for Rust structs.
 #![doc = include_str!("../docs/main.md")]
 #![deny(missing_docs)]
 
+use std::ops::{Div, Mul};
+
 pub use dyn_quantity::*;
 
 use num::Complex;
@@ -61,9 +63,11 @@ messages more helpful.
 pub trait QuantityF64:
     UnitFromType
     + TryFrom<DynQuantity<Complex<f64>>>
+    + TryFrom<DynQuantity<f64>>
     + Clone
     + std::fmt::Debug
     + Into<DynQuantity<Complex<f64>>>
+    + Into<DynQuantity<f64>>
     + Serialize
     + PartialEq
     + Default
@@ -74,9 +78,11 @@ pub trait QuantityF64:
 impl<T> QuantityF64 for T where
     T: UnitFromType
         + TryFrom<DynQuantity<Complex<f64>>>
+        + TryFrom<DynQuantity<f64>>
         + Clone
         + std::fmt::Debug
         + Into<DynQuantity<Complex<f64>>>
+        + Into<DynQuantity<f64>>
         + serde::Serialize
         + PartialEq
         + Default
@@ -87,21 +93,23 @@ impl<T> QuantityF64 for T where
 impl<T> QuantityF64 for T where
     T: UnitFromType
         + TryFrom<DynQuantity<Complex<f64>>>
+        + TryFrom<DynQuantity<f64>>
         + Clone
         + std::fmt::Debug
         + Into<DynQuantity<Complex<f64>>>
+        + Into<DynQuantity<f64>>
         + PartialEq
         + Default
 {
 }
 
 /**
-Trait used to construct variable quantities whose value is a (pure) function of
+Trait used to construct variable quantities whose values are pure functions of
 other quantities.
 
-Implementing this trait for a type marks it as being a variable quantity, whose
-value can change under the influence of other quantities. For example, a
-resistance can be a function of temperature:
+Implementing this trait for a type represents a variable quantity whose value
+can depend on other quantities. For example, electrical resistance can be a
+function of temperature:
 
 ```
 use var_quantity::{DynQuantity, PredefUnit, Unit, QuantityFunction};
@@ -114,7 +122,7 @@ struct Resistance;
 // Again, the macro annotation is just here because of the serde feature
 #[typetag::serde]
 impl QuantityFunction for Resistance {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let mut temperature = 0.0;
         let temperature_unit: Unit = PredefUnit::Temperature.into();
         for f in conditions.iter() {
@@ -140,9 +148,9 @@ let infl2 = &[
 
 let resistance = Resistance {};
 
-assert_eq!(DynQuantity::new(1.0, PredefUnit::ElectricResistance), resistance.call(&[]));
-assert_eq!(DynQuantity::new(1.0, PredefUnit::ElectricResistance), resistance.call(infl1));
-assert_eq!(DynQuantity::new(1.2, PredefUnit::ElectricResistance), resistance.call(infl2));
+assert_eq!(DynQuantity::new(1.0, PredefUnit::ElectricResistance), resistance.eval(&[]));
+assert_eq!(DynQuantity::new(1.0, PredefUnit::ElectricResistance), resistance.eval(infl1));
+assert_eq!(DynQuantity::new(1.2, PredefUnit::ElectricResistance), resistance.eval(infl2));
 ```
 
 An important constraint which unfortunately cannot be covered by the type
@@ -166,11 +174,10 @@ without the need to specify the underlying function type in advance.
  */
 #[cfg_attr(feature = "serde", typetag::serde)]
 pub trait QuantityFunction: dyn_clone::DynClone + Sync + Send + std::any::Any {
-    /**
-    Returns a quantity as a function of `conditions`. See the
-    [`QuantityFunction`] trait docstring for examples.
-    */
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64>;
+    /// Evaluates the function using the supplied environmental conditions.
+    ///
+    /// See the [`QuantityFunction`] trait documentation for an example.
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64>;
 
     /**
     Returns `true` if `self` and `other` are identical and `false` otherwise.
@@ -187,6 +194,19 @@ pub trait QuantityFunction: dyn_clone::DynClone + Sync + Send + std::any::Any {
     If `Self` cannot be compared, this function should simply return `false`.
      */
     fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool;
+
+    /// Multiplies the function's output by `value`, if supported.
+    ///
+    /// If the operation succeeds, subsequent evaluations through [`Self::eval`]
+    /// return the original result multiplied by `value`. Returns `true` if the
+    /// function was modified and `false` otherwise.
+    ///
+    /// The default implementation returns `false`. Implementations that support
+    /// multiplication should override this method.
+    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
+        let _ = value;
+        false
+    }
 }
 
 dyn_clone::clone_trait_object!(QuantityFunction);
@@ -267,7 +287,7 @@ struct ResistanceFunction;
 
 #[typetag::serde]
 impl QuantityFunction for ResistanceFunction {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let mut temperature = 0.0;
         let temperature_unit: Unit = PredefUnit::Temperature.into();
         for f in conditions.iter() {
@@ -306,7 +326,7 @@ struct ResistanceFunction;
 
 #[typetag::serde]
 impl QuantityFunction for ResistanceFunction {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return DynQuantity::new(1.0, PredefUnit::ElectricResistance);
     }
 
@@ -388,8 +408,8 @@ impl<T: QuantityF64> VarQuantity<T> {
     pub fn new<F: QuantityFunction>(function: F) -> Result<Self, UnitsNotEqual> {
         // Check if the function produced the correct type for "default"
         // conditions.
-        let output = function.call(&[]);
-        if let Err(_) = T::try_from(output.into()) {
+        let output = function.eval(&[]);
+        if let Err(_) = T::try_from(output) {
             return Err(UnitsNotEqual(T::unit_from_type(), output.unit));
         }
         return Ok(Self::Function(Box::new(function)));
@@ -405,7 +425,7 @@ impl<T: QuantityF64> VarQuantity<T> {
     pub fn get(&self, conditions: &[DynQuantity<f64>]) -> T {
         match self {
             Self::Constant(val) => val.clone(),
-            Self::Function(fun) => T::try_from(fun.call(conditions).into()).unwrap_or_default(),
+            Self::Function(fun) => T::try_from(fun.eval(conditions)).unwrap_or_default(),
         }
     }
 
@@ -430,6 +450,82 @@ impl<T: QuantityF64> From<T> for VarQuantity<T> {
 impl<T: QuantityF64> From<Box<dyn QuantityFunction>> for VarQuantity<T> {
     fn from(value: Box<dyn QuantityFunction>) -> Self {
         return Self::Function(value);
+    }
+}
+
+impl<Q, T, U> Mul<VarQuantity<Q>> for VarQuantity<T>
+where
+    T: QuantityF64 + Mul<Q, Output = U>,
+    Q: QuantityF64,
+    U: QuantityF64,
+{
+    type Output = VarQuantity<U>;
+
+    fn mul(self, rhs: VarQuantity<Q>) -> Self::Output {
+        match (self, rhs) {
+            (VarQuantity::Constant(lhs), VarQuantity::Constant(rhs)) => {
+                VarQuantity::Constant(lhs * rhs)
+            }
+            (VarQuantity::Constant(lhs), VarQuantity::Function(mut rhs)) => {
+                if rhs.mul(lhs.clone().into()) {
+                    VarQuantity::Function(rhs)
+                } else {
+                    VarQuantity::Function(Box::new(ScaleQuantityFunction {
+                        function: rhs,
+                        multiplier: lhs.into(),
+                    }))
+                }
+            }
+            (VarQuantity::Function(mut lhs), VarQuantity::Constant(rhs)) => {
+                if lhs.mul(rhs.clone().into()) {
+                    VarQuantity::Function(lhs)
+                } else {
+                    VarQuantity::Function(Box::new(ScaleQuantityFunction {
+                        function: lhs,
+                        multiplier: rhs.into(),
+                    }))
+                }
+            }
+            (VarQuantity::Function(lhs), VarQuantity::Function(rhs)) => {
+                VarQuantity::Function(Box::new(ProductQuantityFunction { lhs, rhs }))
+            }
+        }
+    }
+}
+
+impl<Q, T, U> Div<VarQuantity<Q>> for VarQuantity<T>
+where
+    T: QuantityF64 + Div<Q, Output = U>,
+    Q: QuantityF64,
+    U: QuantityF64,
+{
+    type Output = VarQuantity<U>;
+
+    fn div(self, rhs: VarQuantity<Q>) -> Self::Output {
+        match (self, rhs) {
+            (VarQuantity::Constant(numer), VarQuantity::Constant(denom)) => {
+                VarQuantity::Constant(numer / denom)
+            }
+            (VarQuantity::Constant(numer), VarQuantity::Function(denom)) => {
+                VarQuantity::Function(Box::new(ReciprocalQuantityFunction {
+                    numer: numer.into(),
+                    denom,
+                }))
+            }
+            (VarQuantity::Function(mut numer), VarQuantity::Constant(denom)) => {
+                if numer.mul(Into::<DynQuantity<f64>>::into(denom.clone()).powi(-1)) {
+                    VarQuantity::Function(numer)
+                } else {
+                    VarQuantity::Function(Box::new(ScaleQuantityFunction {
+                        function: numer,
+                        multiplier: Into::<DynQuantity<f64>>::into(denom).powi(-1),
+                    }))
+                }
+            }
+            (VarQuantity::Function(numer), VarQuantity::Function(denom)) => {
+                VarQuantity::Function(Box::new(QuotientQuantityFunction { numer, denom }))
+            }
+        }
     }
 }
 
@@ -481,8 +577,8 @@ mod serde_impl {
                             content
                         ))
                         .map_err(serde::de::Error::custom)?;
-                    let output = function.call(&[]);
-                    if let Err(_) = T::try_from(output.into()) {
+                    let output = function.eval(&[]);
+                    if let Err(_) = T::try_from(output) {
                         return Err(serde::de::Error::custom(UnitsNotEqual(
                             T::unit_from_type(),
                             output.unit,
@@ -510,7 +606,7 @@ implementation for each concrete type in your own crate:
 ```ignore
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl QuantityFunction for ClampedQuantity<YourTypeHere> {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(conditions);
     }
 }
@@ -575,7 +671,7 @@ impl<T: QuantityFunction> ClampedQuantity<T> {
     implementations, see the [`ClampedQuantity`] docstring.
      */
     pub fn call_clamped(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        let mut dyn_quantity = self.function.call(conditions);
+        let mut dyn_quantity = self.function.eval(conditions);
         dyn_quantity.value = dyn_quantity.value.clamp(self.lower_limit, self.upper_limit);
         return dyn_quantity;
     }
@@ -585,8 +681,173 @@ impl<T: QuantityFunction> ClampedQuantity<T> {
 // generic trait objects with typetag is not possible
 #[cfg(not(feature = "serde"))]
 impl<T: QuantityFunction + Clone + PartialEq> QuantityFunction for ClampedQuantity<T> {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(conditions);
+    }
+
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+    }
+}
+
+/// A [`QuantityFunction`] that multiplies the output of another function by a
+/// constant quantity.
+///
+/// The wrapped function is evaluated with the supplied environmental
+/// conditions, and its result is multiplied by the constant quantity. The
+/// wrapper therefore preserves the original function's dependencies on
+/// environmental conditions while scaling its output:
+///
+/// `y = k * f(x)`
+///
+/// with `k` being [`ScaleQuantityFunction::multiplier`] and `f(x)` being
+/// [`ScaleQuantityFunction::function`].
+///
+/// This wrapper is returned from the [`Mul`] implementation of [`VarQuantity`]
+/// when a [`QuantityFunction`] cannot be modified directly using
+/// [`QuantityFunction::mul`].
+#[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ScaleQuantityFunction {
+    /// The wrapped function.
+    pub function: Box<dyn QuantityFunction>,
+    /// The multiplicative factor.
+    pub multiplier: DynQuantity<f64>,
+}
+
+impl PartialEq for ScaleQuantityFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.function.dyn_eq(&*other.function) && self.multiplier == other.multiplier
+    }
+}
+
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl QuantityFunction for ScaleQuantityFunction {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        self.function.eval(conditions) * self.multiplier
+    }
+
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+    }
+
+    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
+        self.multiplier *= value;
+        true
+    }
+}
+
+/// A [`QuantityFunction`] that divides a constant quantity by the output of
+/// another quantity function.
+///
+/// The denominator function is evaluated using the supplied environmental
+/// conditions, and the constant numerator is divided by its result:
+///
+/// `y = k / f(x)`
+///
+/// where `k` is [`Self::numer`] and `f(x)` is the output of [`Self::denom`].
+///
+/// This wrapper is returned from the [`Div`] implementation of [`VarQuantity`]
+/// when a [`QuantityFunction`] cannot be modified directly using
+/// [`QuantityFunction::mul`] or when dividing a [`VarQuantity::Constant`] by a
+/// [`VarQuantity::Function`].
+#[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ReciprocalQuantityFunction {
+    /// The constant numerator.
+    pub numer: DynQuantity<f64>,
+    /// The denominator function.
+    pub denom: Box<dyn QuantityFunction>,
+}
+
+impl PartialEq for ReciprocalQuantityFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.numer == other.numer && self.denom.dyn_eq(&*other.denom)
+    }
+}
+
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl QuantityFunction for ReciprocalQuantityFunction {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        self.numer / self.denom.eval(conditions)
+    }
+
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+    }
+}
+
+/// A [`QuantityFunction`] that multiplies the outputs of two other quantity
+/// functions.
+///
+/// Both functions are evaluated using the supplied environmental conditions,
+/// and their results are multiplied:
+///
+/// `y = f(x) * g(x)`
+///
+/// where `f(x)` and `g(x)` are the outputs of [`Self::lhs`] and [`Self::rhs`],
+/// respectively.
+///
+/// This wrapper is returned from the [`Mul`] implementation of [`VarQuantity`]
+/// when multiplying two [`VarQuantity::Function`]s.
+#[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ProductQuantityFunction {
+    /// The left-hand side of the multiplication.
+    pub lhs: Box<dyn QuantityFunction>,
+    /// The right-hand side of the multiplication.
+    pub rhs: Box<dyn QuantityFunction>,
+}
+
+impl PartialEq for ProductQuantityFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.lhs.dyn_eq(&*other.lhs) && self.rhs.dyn_eq(&*other.rhs)
+    }
+}
+
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl QuantityFunction for ProductQuantityFunction {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        self.lhs.eval(conditions) * self.rhs.eval(conditions)
+    }
+
+    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
+        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+    }
+}
+
+/// A [`QuantityFunction`] that divides the output of one quantity function
+/// by the output of another quantity function.
+///
+/// Both functions are evaluated using the supplied environmental conditions,
+/// and the result of the first function is divided by the result of the second:
+///
+/// `y = f(x) / g(x)`
+///
+/// where `f(x)` and `g(x)` are the outputs of [`Self::numer`] and
+/// [`Self::denom`], respectively.
+///
+/// This wrapper is returned from the [`Div`] implementation of [`VarQuantity`]
+/// when dividing one [`VarQuantity::Function`] by another.
+#[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct QuotientQuantityFunction {
+    /// The numerator function.
+    pub numer: Box<dyn QuantityFunction>,
+    /// The denominator function.
+    pub denom: Box<dyn QuantityFunction>,
+}
+
+impl PartialEq for QuotientQuantityFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.numer.dyn_eq(&*other.numer) && self.denom.dyn_eq(&*other.denom)
+    }
+}
+
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl QuantityFunction for QuotientQuantityFunction {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        self.numer.eval(conditions) / self.denom.eval(conditions)
     }
 
     fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
@@ -619,7 +880,7 @@ pub struct Linear {
 // Again, the macro annotation is just here because of the serde feature
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl QuantityFunction for Linear {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return filter_unary_function(
             conditions,
             Unit::default(),

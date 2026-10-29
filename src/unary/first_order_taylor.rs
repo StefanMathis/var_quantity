@@ -36,7 +36,7 @@ let fot = FirstOrderTaylor::new(
     DynQuantity::from_str("30 K").unwrap() // T0
 ).expect("units match");
 
-assert_eq!(fot.call(&[ DynQuantity::from_str("60 K").unwrap()]).value, 32.0);
+assert_eq!(fot.eval(&[ DynQuantity::from_str("60 K").unwrap()]).value, 32.0);
 ```
 
 # Features:
@@ -141,13 +141,13 @@ impl FirstOrderTaylor {
     ).expect("matching units");
 
     // No match of any input unit with influencing_factor_unit -> Base value
-    assert_eq!(fot.call(&[]).value, 1.0);
+    assert_eq!(fot.eval(&[]).value, 1.0);
 
     // A match -> Use the corresponding quantity function as x
     let qt1 = DynQuantity::new(32.0, fot.influencing_factor_unit()); // <- Matches
     let qt2 = DynQuantity::new(-2.0, PredefUnit::Force);
 
-    assert_eq!(fot.call(&[qt1, qt2]).value, 2.0);
+    assert_eq!(fot.eval(&[qt1, qt2]).value, 2.0);
     ```
     */
     pub fn influencing_factor_unit(&self) -> Unit {
@@ -179,7 +179,7 @@ impl FirstOrderTaylor {
 
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl QuantityFunction for FirstOrderTaylor {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return filter_unary_function(
             conditions,
             self.expansion_point.unit,
@@ -195,6 +195,11 @@ impl QuantityFunction for FirstOrderTaylor {
 
     fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+    }
+
+    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
+        self.base_value *= value;
+        true
     }
 }
 
@@ -228,11 +233,15 @@ mod serde_impl {
 #[cfg(feature = "serde")]
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl QuantityFunction for crate::ClampedQuantity<FirstOrderTaylor> {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(conditions);
     }
 
     fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+    }
+
+    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
+        self.function.mul(value)
     }
 }

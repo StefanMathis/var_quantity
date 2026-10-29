@@ -38,7 +38,7 @@ impl Linear {
     use var_quantity::{QuantityFunction, unary::Linear};
 
     let lin = Linear::new(DynQuantity::new(-1.0, PredefUnit::Force), DynQuantity::new(2.0, PredefUnit::Torque));
-    assert_eq!(lin.call(&[DynQuantity::new(5.0, PredefUnit::Length)]), DynQuantity::new(-3.0, PredefUnit::Torque))
+    assert_eq!(lin.eval(&[DynQuantity::new(5.0, PredefUnit::Length)]), DynQuantity::new(-3.0, PredefUnit::Torque))
     ```
      */
     pub fn new(slope: DynQuantity<f64>, base_value: DynQuantity<f64>) -> Self {
@@ -78,13 +78,13 @@ impl Linear {
     );
 
     // No match of any input unit with influencing_factor_unit -> Base value
-    assert_eq!(lin.call(&[]).value, 1.0);
+    assert_eq!(lin.eval(&[]).value, 1.0);
 
     // A match -> Use the corresponding quantity function as x
     let qt1 = DynQuantity::new(2.0, lin.influencing_factor_unit()); // <- Matches
     let qt2 = DynQuantity::new(-2.0, PredefUnit::Force);
 
-    assert_eq!(lin.call(&[qt1, qt2]).value, 2.0);
+    assert_eq!(lin.eval(&[qt1, qt2]).value, 2.0);
     ```
     */
     pub fn influencing_factor_unit(&self) -> Unit {
@@ -114,7 +114,7 @@ impl Linear {
 
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl QuantityFunction for Linear {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return filter_unary_function(
             conditions,
             self.influencing_factor_unit(),
@@ -133,6 +133,12 @@ impl QuantityFunction for Linear {
     fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
     }
+
+    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
+        self.slope = self.slope * value;
+        self.base_value = self.base_value * value;
+        true
+    }
 }
 
 // =============================================================================
@@ -140,11 +146,15 @@ impl QuantityFunction for Linear {
 #[cfg(feature = "serde")]
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl QuantityFunction for crate::ClampedQuantity<Linear> {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         return self.call_clamped(conditions);
     }
 
     fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+    }
+
+    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
+        self.function.mul(value)
     }
 }

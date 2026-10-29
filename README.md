@@ -24,7 +24,7 @@ This crate is an extension of [dyn_quantity](https://crates.io/crates/dyn_quanti
 and provides an interface for defining variable quantities whose value is a
 (pure) function of other quantities.
 
-The full API documentation is available at <https://docs.rs/var_quantity/0.4.0/var_quantity>.
+The full API documentation is available at <https://docs.rs/var_quantity/0.5.0/var_quantity>.
 
 > **Feedback welcome!**  
 > Found a bug, missing docs, or have a feature request?  
@@ -50,7 +50,7 @@ struct Model1(DynQuantity<f64>);
 
 #[typetag::serde]
 impl QuantityFunction for Model1 {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let mut b = DynQuantity::new(0.0, PredefUnit::MagneticFluxDensity);
         for factor in conditions.iter() {
             if b.unit == factor.unit {
@@ -71,7 +71,7 @@ struct Model2(DynQuantity<f64>);
 
 #[typetag::serde]
 impl QuantityFunction for Model2 {
-    fn call(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
         let mut b = DynQuantity::new(0.0, PredefUnit::MagneticFluxDensity);
         let mut f = DynQuantity::new(0.0, PredefUnit::Frequency);
         for factor in conditions.iter() {
