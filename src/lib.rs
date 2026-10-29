@@ -44,9 +44,11 @@ messages more helpful.
 pub trait QuantityF64:
     UnitFromType
     + TryFrom<DynQuantity<Complex<f64>>>
+    + TryFrom<DynQuantity<f64>>
     + Clone
     + std::fmt::Debug
     + Into<DynQuantity<Complex<f64>>>
+    + Into<DynQuantity<f64>>
     + PartialEq
     + Default
 {
