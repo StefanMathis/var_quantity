@@ -210,9 +210,9 @@ for details.
 use var_quantity::VarQuantity;
 use var_quantity::uom::si::electrical_resistivity::ohm_meter;
 use var_quantity::uom::si::f64::ElectricalResistivity;
-use yaml_serde;
+use serde_yaml;
 
 let q: VarQuantity<ElectricalResistivity> =
-    yaml_serde::from_str("1/(2.0e6) Ohm*m").unwrap();
+    serde_yaml::from_str("1/(2.0e6) Ohm*m").unwrap();
 assert_eq!(q.eval(&[]).get::<ohm_meter>(), 0.5e-6)
 ```

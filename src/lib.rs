@@ -663,13 +663,13 @@ use var_quantity::VarQuantity;
 
 let string = indoc::indoc! {"
 tokens:
-- !OperandConst
+- OperandConst:
     5 mOhm
-- !Clamp
+- Clamp:
     min: 1.0
     max: 2.0
 "};
-let var_quantity: VarQuantity<ElectricalResistance> = yaml_serde::from_str(string).expect("valid sequence");
+let var_quantity: VarQuantity<ElectricalResistance> = serde_yaml::from_str(string).expect("valid sequence");
 assert_eq!(var_quantity.eval(&[]).get::<ohm>(), 1.0);
 ```
 
@@ -687,9 +687,9 @@ use var_quantity::uom::si::{f64::ElectricalResistance, electrical_resistance::oh
 use var_quantity::VarQuantity;
 
 // From a string
-let from_string: VarQuantity<ElectricalResistance> = yaml_serde::from_str("5.0 kOhm").unwrap();
+let from_string: VarQuantity<ElectricalResistance> = serde_yaml::from_str("5.0 kOhm").unwrap();
 assert_eq!(from_string.eval(&[]).get::<ohm>(), 5000.0);
-assert!(yaml_serde::from_str::<VarQuantity<ElectricalResistance>>("5.0 m/s").is_err()); // Invalid output unit
+assert!(serde_yaml::from_str::<VarQuantity<ElectricalResistance>>("5.0 m/s").is_err()); // Invalid output unit
 
 // From a QuantityFunction implementor
 let qf_string = indoc::indoc! {"
@@ -697,11 +697,11 @@ Polynomial:
   coefficients:
   - 5.0 kOhm
 "};
-let from_fn: VarQuantity<ElectricalResistance> = yaml_serde::from_str(&qf_string).unwrap();
+let from_fn: VarQuantity<ElectricalResistance> = serde_yaml::from_str(&qf_string).unwrap();
 assert_eq!(from_fn.eval(&[]).get::<ohm>(), 5000.0);
 
 // From a f64
-let from_f64: VarQuantity<ElectricalResistance> = yaml_serde::from_str("5000.0").unwrap();
+let from_f64: VarQuantity<ElectricalResistance> = serde_yaml::from_str("5000.0").unwrap();
 assert_eq!(from_f64.eval(&[]).get::<ohm>(), 5000.0);
 ```
 */

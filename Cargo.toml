@@ -24,7 +24,7 @@ serde = ["dep:serde", "dep:typetag", "dep:serde-value", "dep:deserialize_untagge
 from_str = ["dyn_quantity/from_str"]
 
 [dev-dependencies]
-yaml_serde = "0.10.6"
+serde_yaml = "0.8.6"
 approxim = { version = "0.6" }
 indoc = "1.0"
 var_quantity = { path = ".", features = ["from_str", "serde"] }
