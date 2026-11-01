@@ -1,6 +1,6 @@
 [package]
 name = "var_quantity"
-version = "0.6.2"
+version = "0.7.0"
 edition = "2024"
 description = "Provides an interface for defining variable quantities whose value depends on that of other quantities."
 readme = "README.md"
@@ -14,7 +14,6 @@ deserialize_untagged_verbose_error = {version = "0.1.8", optional = true }
 typetag = { version = "^0.2", optional = true }
 serde-value = { version = "0.7", optional = true }
 dyn_quantity = { version = "0.6.2", features = ["uom"] }
-dyn-clone = "1"
 smallvec = "1"
 num = {version = "0.4"}
 

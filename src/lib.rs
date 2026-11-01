@@ -18,6 +18,7 @@ physical quantities whose values depend on other quantities.
 use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::ops::{Add, Div, Mul, Sub};
+use std::sync::Arc;
 
 // Prevent rustdoc from documenting the dependency again
 #[doc(hidden)]
@@ -191,7 +192,7 @@ deserialized without requiring the concrete types of their underlying
 functions to be known in advance.
  */
 #[cfg_attr(feature = "serde", typetag::serde)]
-pub trait QuantityFunction: dyn_clone::DynClone + Sync + Send + std::any::Any {
+pub trait QuantityFunction: Sync + Send + std::any::Any {
     /**
     Evaluates the function using the supplied environmental `conditions`.
 
@@ -251,8 +252,6 @@ pub trait QuantityFunction: dyn_clone::DynClone + Sync + Send + std::any::Any {
     fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool;
 }
 
-dyn_clone::clone_trait_object!(QuantityFunction);
-
 /// A token in the Reverse Polish Notation (RPN) representation of a
 /// [`VarQuantity<T>`].
 ///
@@ -261,7 +260,7 @@ dyn_clone::clone_trait_object!(QuantityFunction);
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum RpnToken {
     /// A boxed [`QuantityFunction`] which is an operand of the composed function.
-    OperandFn(Box<dyn QuantityFunction>),
+    OperandFn(Arc<dyn QuantityFunction>),
     /// References a quantity function by its index in the function cache.
     ///
     /// The index corresponds to the zero-based position of the function among
@@ -311,7 +310,7 @@ pub enum RpnToken {
 impl PartialEq for RpnToken {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::OperandFn(l0), Self::OperandFn(r0)) => l0.dyn_eq(&**r0),
+            (Self::OperandFn(l0), Self::OperandFn(r0)) => Arc::ptr_eq(l0, r0) || l0.dyn_eq(&**r0),
             (Self::OperandFnRef(l0), Self::OperandFnRef(r0)) => l0 == r0,
             (Self::OperandConst(l0), Self::OperandConst(r0)) => l0 == r0,
             (
@@ -356,8 +355,8 @@ impl std::fmt::Debug for RpnToken {
     }
 }
 
-impl From<Box<dyn QuantityFunction>> for RpnToken {
-    fn from(value: Box<dyn QuantityFunction>) -> Self {
+impl From<Arc<dyn QuantityFunction>> for RpnToken {
+    fn from(value: Arc<dyn QuantityFunction>) -> Self {
         Self::OperandFn(value)
     }
 }
@@ -762,7 +761,7 @@ impl<T: QuantityF64> VarQuantity<T> {
         }
 
         // Cast to trait object
-        let boxed: Box<dyn QuantityFunction> = Box::new(function);
+        let boxed: Arc<dyn QuantityFunction> = Arc::new(function);
 
         Ok(Self {
             max_stack_depth: 1,
@@ -1395,7 +1394,7 @@ where
         enum VarQuantityVariants<T> {
             VarQuantity(VarQuantityAlias),
             Quantity(T),
-            QuantityFunction(Box<dyn QuantityFunction>),
+            QuantityFunction(Arc<dyn QuantityFunction>),
             DynQuantity(DynQuantity<f64>),
         }
 

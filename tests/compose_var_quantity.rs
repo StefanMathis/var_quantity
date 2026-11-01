@@ -1,4 +1,5 @@
 use std::assert_matches;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use var_quantity::uom::si::f64::*;
@@ -318,13 +319,13 @@ fn test_dedup_from_tokens() {
         10.0,
         PredefUnit::Length,
     )));
-    tokens.push(RpnToken::OperandFn(Box::new(fun.clone())));
+    tokens.push(RpnToken::OperandFn(Arc::new(fun.clone())));
     tokens.push(RpnToken::Add);
-    tokens.push(RpnToken::OperandFn(Box::new(fun.clone())));
+    tokens.push(RpnToken::OperandFn(Arc::new(fun.clone())));
     tokens.push(RpnToken::Add);
-    tokens.push(RpnToken::OperandFn(Box::new(fun.clone())));
+    tokens.push(RpnToken::OperandFn(Arc::new(fun.clone())));
     tokens.push(RpnToken::Sub);
-    tokens.push(RpnToken::OperandFn(Box::new(fun.clone())));
+    tokens.push(RpnToken::OperandFn(Arc::new(fun.clone())));
     tokens.push(RpnToken::Add);
 
     let composed: VarQuantity<Length> =
@@ -345,7 +346,7 @@ fn test_dedup_from_tokens() {
 }
 
 fn length_fn_token(value: f64) -> RpnToken {
-    RpnToken::OperandFn(Box::new(Constant(DynQuantity::new(
+    RpnToken::OperandFn(Arc::new(Constant(DynQuantity::new(
         value,
         PredefUnit::Length,
     ))))
