@@ -1362,224 +1362,42 @@ impl<T: QuantityF64> PartialEq for VarQuantity<T> {
 }
 
 #[cfg(feature = "serde")]
-mod serde_impl {
-    use super::*;
-
-    struct VarQuantityVisitor<T>(std::marker::PhantomData<T>);
-
-    impl<T> VarQuantityVisitor<T> {
-        fn new() -> Self {
-            Self(std::marker::PhantomData)
-        }
-    }
-
-    impl<'de, T> serde::de::Visitor<'de> for VarQuantityVisitor<T>
+impl<'de, T> serde::Deserialize<'de> for VarQuantity<T>
+where
+    T: serde::de::DeserializeOwned + QuantityF64,
+    <T as TryFrom<DynQuantity<Complex<f64>>>>::Error: std::fmt::Display,
+    <T as TryFrom<DynQuantity<f64>>>::Error: std::fmt::Display,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        T: serde::de::DeserializeOwned + QuantityF64,
-        <T as TryFrom<DynQuantity<Complex<f64>>>>::Error: std::fmt::Display,
-        <T as TryFrom<DynQuantity<f64>>>::Error: std::fmt::Display,
+        D: serde::Deserializer<'de>,
     {
-        type Value = VarQuantity<T>;
-
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter.write_str("a quantity, a quantity string, a function, or a token expression")
+        #[derive(Deserialize)]
+        struct VarQuantityAlias {
+            tokens: Vec<RpnToken>,
         }
 
-        fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            let value = T::deserialize(serde::de::value::F64Deserializer::<E>::new(value as f64))?;
-
-            Ok(VarQuantity::from(value))
+        #[derive(deserialize_untagged_verbose_error::DeserializeUntaggedVerboseError)]
+        enum VarQuantityVariants<T> {
+            VarQuantity(VarQuantityAlias),
+            Quantity(T),
+            QuantityFunction(Box<dyn QuantityFunction>),
+            DynQuantity(DynQuantity<f64>),
         }
 
-        fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            let value = T::deserialize(serde::de::value::F64Deserializer::<E>::new(value as f64))?;
-
-            Ok(VarQuantity::from(value))
-        }
-
-        fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            let value = T::deserialize(serde::de::value::F64Deserializer::<E>::new(value))?;
-            Ok(VarQuantity::from(value))
-        }
-
-        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            self.visit_string(value.to_owned())
-        }
-
-        fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            // Preserve the original untagged-enum precedence:
-            // first try T, then the string representation.
-            if let Ok(quantity) = T::deserialize(serde::de::value::StringDeserializer::<E>::new(
-                value.clone(),
-            )) {
-                return Ok(VarQuantity::from(quantity));
-            }
-
-            #[cfg(feature = "from_str")]
-            {
-                use std::str::FromStr;
-                let dynamic = DynQuantity::<Complex<f64>>::from_str(&value).map_err(E::custom)?;
-                let quantity = T::try_from(dynamic).map_err(E::custom)?;
-                Ok(VarQuantity::from(quantity))
-            }
-
-            #[cfg(not(feature = "from_str"))]
-            {
-                Err(E::custom("expected a quantity"))
-            }
-        }
-
-        fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-        where
-            A: serde::de::MapAccess<'de>,
-        {
-            let first_key: Option<String> = map.next_key()?;
-
-            match first_key.as_deref() {
-                Some("tokens") => {
-                    let tokens = map.next_value::<Vec<RpnToken>>()?;
-
-                    // The token representation has exactly one field.
-                    if map.next_key::<serde::de::IgnoredAny>()?.is_some() {
-                        return Err(serde::de::Error::custom(
-                            "unexpected field in VarQuantity token representation",
-                        ));
-                    }
-
-                    return VarQuantity::from_tokens(tokens).map_err(serde::de::Error::custom);
-                }
-                Some("value") => {
-                    // Quantity representation
-
-                    // Replay the first key so DynQuantity can deserialize the complete map.
-                    let map = FirstKeyMapAccess {
-                        first_key,
-                        first_value_pending: false,
-                        inner: map,
-                    };
-
-                    let quantity = DynQuantity::<f64>::deserialize(
-                        serde::de::value::MapAccessDeserializer::new(map),
-                    )?;
-
-                    let quantity = T::try_from(quantity).map_err(serde::de::Error::custom)?;
-
-                    return Ok(VarQuantity::from(quantity));
-                }
-                _ => {
-                    // Function representation
-
-                    // Replay the first key so that T can deserialize the original map.
-                    let map = FirstKeyMapAccess {
-                        first_key,
-                        first_value_pending: false,
-                        inner: map,
-                    };
-
-                    let fun = Box::<dyn QuantityFunction>::deserialize(
-                        serde::de::value::MapAccessDeserializer::new(map),
-                    )?;
-
-                    VarQuantity::from_tokens(vec![RpnToken::OperandFn(fun)])
-                        .map_err(serde::de::Error::custom)
-                }
-            }
-        }
-
-        fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
-        where
-            A: serde::de::EnumAccess<'de>,
-        {
-            let function = Box::<dyn QuantityFunction>::deserialize(
-                serde::de::value::EnumAccessDeserializer::new(data),
-            )?;
-            VarQuantity::from_tokens(vec![RpnToken::OperandFn(function)])
-                .map_err(serde::de::Error::custom)
-        }
-    }
-
-    #[cfg(feature = "serde")]
-    struct FirstKeyMapAccess<A> {
-        first_key: Option<String>,
-        first_value_pending: bool,
-        inner: A,
-    }
-
-    impl<'de, A> serde::de::MapAccess<'de> for FirstKeyMapAccess<A>
-    where
-        A: serde::de::MapAccess<'de>,
-    {
-        type Error = A::Error;
-
-        fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
-        where
-            K: serde::de::DeserializeSeed<'de>,
-        {
-            if let Some(key) = self.first_key.take() {
-                self.first_value_pending = true;
-
-                seed.deserialize(serde::de::value::StringDeserializer::<Self::Error>::new(
-                    key,
-                ))
-                .map(Some)
-            } else {
-                self.inner.next_key_seed(seed)
-            }
-        }
-
-        fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
-        where
-            V: serde::de::DeserializeSeed<'de>,
-        {
-            if self.first_value_pending {
-                self.first_value_pending = false;
-            }
-
-            self.inner.next_value_seed(seed)
-        }
-
-        fn size_hint(&self) -> Option<usize> {
-            None
-        }
-    }
-
-    impl<'de, T> serde::Deserialize<'de> for VarQuantity<T>
-    where
-        T: serde::de::DeserializeOwned + QuantityF64,
-        <T as TryFrom<DynQuantity<Complex<f64>>>>::Error: std::fmt::Display,
-        <T as TryFrom<DynQuantity<f64>>>::Error: std::fmt::Display,
-    {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: serde::Deserializer<'de>,
-        {
-            if deserializer.is_human_readable() {
-                deserializer.deserialize_any(VarQuantityVisitor::<T>::new())
-            } else {
-                // Deserialize the canonical token representation.
-                #[derive(Deserialize)]
-                struct VarQuantityAlias {
-                    tokens: Vec<RpnToken>,
-                }
-
-                let alias = VarQuantityAlias::deserialize(deserializer)?;
-
+        let variants: VarQuantityVariants<T> = VarQuantityVariants::deserialize(deserializer)?;
+        match variants {
+            VarQuantityVariants::VarQuantity(alias) => {
                 VarQuantity::from_tokens(alias.tokens).map_err(serde::de::Error::custom)
+            }
+            VarQuantityVariants::Quantity(qty) => Ok(VarQuantity::from(qty)),
+            VarQuantityVariants::QuantityFunction(fun) => {
+                VarQuantity::from_tokens(vec![RpnToken::OperandFn(fun)])
+                    .map_err(serde::de::Error::custom)
+            }
+            VarQuantityVariants::DynQuantity(dyn_qty) => {
+                let qty: T = dyn_qty.try_into().map_err(serde::de::Error::custom)?;
+                Ok(VarQuantity::from(qty))
             }
         }
     }
