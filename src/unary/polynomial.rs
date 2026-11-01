@@ -89,35 +89,35 @@ impl Polynomial {
             Some(b) => {
                 let base_unit = b.unit;
                 for (exponent, c) in coefficients.iter().rev().enumerate().skip(1) {
-                    let res_unit = c.unit * influencing_factor_unit.powi(exponent as i32);
+                    let res_unit = c.unit * influencing_factor_unit.powi(exponent as i8);
                     if base_unit != res_unit {
                         return Err(UnitsNotEqual(base_unit, res_unit));
                     }
                 }
-                b.clone()
+                *b
             }
             None => DynQuantity::new(0.0, Unit::default()),
         };
 
         let coefficients_val = coefficients.iter().map(|q| q.value).collect();
-        return Ok(Self {
+        Ok(Self {
             coefficients,
             influencing_factor_unit,
             coefficients_val,
             default_value,
-        });
+        })
     }
 
     /**
     Returns the `coefficients`.
     */
     pub fn coefficients(&self) -> &[DynQuantity<f64>] {
-        return self.coefficients.as_slice();
+        self.coefficients.as_slice()
     }
 
     /**
     Returns the unit of the quantity which influences the variable quantity.
-    If none of the `conditions` in a [`QuantityFunction::call`]
+    If none of the `conditions` in a [`QuantityFunction::eval`]
     matches this item, then `x` is assumed to be zero and the base value is
     returned.
 
@@ -149,11 +149,11 @@ impl Polynomial {
     ```
     */
     pub fn influencing_factor_unit(&self) -> Unit {
-        return self.influencing_factor_unit;
+        self.influencing_factor_unit
     }
 
     /**
-    Returns the unit which will be returned from [`QuantityFunction::call`].
+    Returns the unit which will be returned from [`QuantityFunction::eval`].
 
     ```
     use dyn_quantity::{DynQuantity, PredefUnit, Unit};
@@ -170,32 +170,27 @@ impl Polynomial {
     ```
      */
     pub fn output_unit(&self) -> Unit {
-        return self.default_value.unit;
+        self.default_value.unit
     }
 }
 
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl QuantityFunction for Polynomial {
     fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        return filter_unary_function(
+        filter_unary_function(
             conditions,
             self.influencing_factor_unit,
             |input| {
                 let val =
                     horner::eval_polynomial(input.value, self.coefficients_val.as_slice()).unwrap();
-                return DynQuantity::new(val, self.default_value.unit);
+                DynQuantity::new(val, self.default_value.unit)
             },
             || self.default_value,
-        );
+        )
     }
 
     fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
-    }
-
-    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
-        self.coefficients.iter_mut().for_each(|c| *c = *c * value);
-        true
     }
 }
 
@@ -218,23 +213,5 @@ mod serde_impl {
             let alias = PolynomialAlias::deserialize(deserializer)?;
             Self::new(alias.coefficients).map_err(serde::de::Error::custom)
         }
-    }
-}
-
-// =============================================================================
-
-#[cfg(feature = "serde")]
-#[cfg_attr(feature = "serde", typetag::serde)]
-impl QuantityFunction for crate::ClampedQuantity<Polynomial> {
-    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        return self.call_clamped(conditions);
-    }
-
-    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
-        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
-    }
-
-    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
-        self.function.mul(value)
     }
 }

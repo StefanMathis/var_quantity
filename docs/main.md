@@ -1,60 +1,116 @@
 > **Feedback welcome!**  
 > Found a bug, missing docs, or have a feature request?  
-> Please open an issue on [GitHub](https://github.com/StefanMathis/var_quantity.git).
+> Please open an issue on [GitHub](https://github.com/StefanMathis/var_quantity).
 
-As an example, let's consider the eddy current losses in a conductive material
-which are caused by sinusoidally changing magnetic fields. A simple model
-could only take the magnetic flux density amplitude into account and a more
-sophisticated model would also consider the field frequency. Using the
-[`VarQuantity`] wrapper, both models can be used with the same interface:
+In physical equations, quantities often depend on environmental conditions.
+For example, when calculating the current through two resistors connected in
+series, one has to account for their temperature dependencies. Consequently,
+the resulting current is also a function of temperature:
+
+`i(T) = u / (r1(T) + r2(T))`
+
+The following example shows how to express and compose this model using the
+[`VarQuantity`] type provided by this crate:
 
 ```rust
-use var_quantity::{QuantityFunction, VarQuantity, DynQuantity, PredefUnit, Unit};
+use approxim::assert_abs_diff_eq;
+
+use var_quantity::unary::FirstOrderTaylor;
+use var_quantity::uom::si::f64::*;
+use var_quantity::uom::si::{
+    electric_current::ampere, electric_potential::volt, electrical_resistance::ohm,
+    temperature_interval::kelvin, thermodynamic_temperature::degree_celsius,
+};
+use var_quantity::*;
+
+// Model the electrical resistance as a first-order Taylor approximation:
+// r = r0 * (1 + k * (t - t0))
+// at the reference temperature:
+let t0 = ThermodynamicTemperature::new::<degree_celsius>(20.0);
+
+// First resistor: Resistance increases by 50 % per 100 K
+let r0_1 = ElectricalResistance::new::<ohm>(2.0);
+let k_1 = 0.005 / TemperatureInterval::new::<kelvin>(1.0);
+let r1: VarQuantity<ElectricalResistance> = VarQuantity::new(
+    FirstOrderTaylor::new(r0_1.into(), k_1.into(), t0.into()).expect("k * t0 is dimensionless"),
+)
+.expect("model output must have units of resistance");
+
+// Second resistor: Resistance increases by 20 % per 100 K
+let r0_2 = ElectricalResistance::new::<ohm>(1.0);
+let k_2 = 0.002 / TemperatureInterval::new::<kelvin>(1.0);
+let r2: VarQuantity<ElectricalResistance> = VarQuantity::new(
+    FirstOrderTaylor::new(r0_2.into(), k_2.into(), t0.into()).expect("k * t0 is dimensionless"),
+)
+.expect("model output must have units of resistance");
+
+// The voltage is constant, but must also be represented as a VarQuantity
+// to participate in the expression.
+let u: VarQuantity<ElectricPotential> = VarQuantity::from(ElectricPotential::new::<volt>(10.0));
+
+// Combine the two independently defined resistance models in series.
+// The resulting expression retains the temperature dependencies of both.
+let r_total = r1 + r2;
+
+// Build the current equation i(T) = u / r_total.
+// The dimensional equation ElectricCurrent = ElectricPotential / ElectricalResistance
+// is checked at compile time.
+let i: VarQuantity<ElectricCurrent> = u / r_total;
+// let l: VarQuantity<Length> = u / (r1 + r2); // This does not compile due to the dimensional analysis
+
+// Evaluate the composed expression for different ambient temperatures.
+let cold: &[DynQuantity<f64>] = &[ThermodynamicTemperature::new::<degree_celsius>(20.0).into()];
+assert_abs_diff_eq!(i.eval(cold).get::<ampere>(), 3.3333, epsilon = 1e-3);
+
+let hot: &[DynQuantity<f64>] = &[ThermodynamicTemperature::new::<degree_celsius>(120.0).into()];
+assert_abs_diff_eq!(i.eval(hot).get::<ampere>(), 2.380, epsilon = 1e-3);
+```
+
+As demonstrated by the example, this crate builds on
+[`uom`](https://crates.io/crates/uom) and
+[`dyn_quantity`](https://crates.io/crates/dyn_quantity).
+The former ensures compile-time dimensional type safety, while the latter
+provides the underlying runtime representation of physical quantities without
+introducing additional generics into the model implementations.
+
+# Defining models for physical quantities
+
+The previous example uses the predefined [`FirstOrderTaylor`] model to
+represent temperature-dependent resistance. By implementing the
+[`QuantityFunction`] trait, you can define arbitrary models yourself:
+
+```rust
+use var_quantity::*;
 use var_quantity::uom::si::{f64::{Power, MagneticFluxDensity, Frequency}, 
     power::watt, magnetic_flux_density::tesla, frequency::hertz};
 
 // The serde annotations are just here because the doctests of this crate use
 // the serde feature - they are not needed if the serde feature is disabled.
 
-// Model 1: p = k * B^2
+// Eddy current loss model: p = k * f^2 * B^2
 #[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
-struct Model1(DynQuantity<f64>);
+struct EddyCurrentLosses(DynQuantity<f64>);
 
+// Implement QuantityFunction to make EddyCurrentLosses usable as a
+// non-constant VarQuantity.
 #[typetag::serde]
-impl QuantityFunction for Model1 {
+impl QuantityFunction for EddyCurrentLosses {
     fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        let mut b = DynQuantity::new(0.0, PredefUnit::MagneticFluxDensity);
-        for factor in conditions.iter() {
-            if b.unit == factor.unit {
-                b = factor.clone();
-            }
-        }
-        return self.0 * b.powi(2);
-    }
-
-    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
-        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
-    }
-}
-
-// Model 2: p = k * f^2 * B^2
-#[derive(Clone, serde::Deserialize, serde::Serialize, PartialEq)]
-struct Model2(DynQuantity<f64>);
-
-#[typetag::serde]
-impl QuantityFunction for Model2 {
-    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+        // For this model, missing flux density or frequency is interpreted as zero.
+        // Consequently, the calculated losses are also zero.
         let mut b = DynQuantity::new(0.0, PredefUnit::MagneticFluxDensity);
         let mut f = DynQuantity::new(0.0, PredefUnit::Frequency);
-        for factor in conditions.iter() {
-            if b.unit == factor.unit {
-                b = factor.clone();
+
+        for condition in conditions {
+            if b.unit == condition.unit {
+                b = *condition;
             }
-            if f.unit == factor.unit {
-                f = factor.clone();
+            if f.unit == condition.unit {
+                f = *condition;
             }
         }
-        return self.0 * f.powi(2) * b.powi(2);
+
+        self.0 * f.powi(2) * b.powi(2)
     }
 
     fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
@@ -62,122 +118,76 @@ impl QuantityFunction for Model2 {
     }
 }
 
-let k = DynQuantity::new(
-    1000.0,
-    Unit::from(PredefUnit::Power) / Unit::from(PredefUnit::MagneticFluxDensity).powi(2),
-);
-let model1: VarQuantity<Power> = VarQuantity::new(Model1(k)).expect("output unit is watt");
-
+// Define the proportionality constant with unit W / (T² * Hz²).
 let k = DynQuantity::new(
     2.0,
     Unit::from(PredefUnit::Power)
         / Unit::from(PredefUnit::MagneticFluxDensity).powi(2)
         / Unit::from(PredefUnit::Frequency).powi(2),
 );
-let model2: VarQuantity<Power> = VarQuantity::new(Model2(k)).expect("output unit is watt");
 
-// This function takes a variable quantity, the magnetic flux density and
-// the frequency and calculates the losses
-fn losses(model: &VarQuantity<Power>, b: MagneticFluxDensity, f: Frequency) -> Power {
-    return model.get(&[b.into(), f.into()]);
-}
+// VarQuantity::new checks at runtime if the output unit of
+// EddyCurrentLosses::eval matches the unit of Power
+let model: VarQuantity<Power> = VarQuantity::new(EddyCurrentLosses(k)).expect("output unit is watt");
 
+// Provide the known environmental conditions: A sinusoidal magnetic field
+// with an amplitude of 1.2 T and a frequency of 20 Hz.
 let b = MagneticFluxDensity::new::<tesla>(1.2);
 let f = Frequency::new::<hertz>(20.0);
 
-assert_eq!(losses(&model1, b, f).get::<watt>(), 1440.0);
-assert_eq!(losses(&model2, b, f).get::<watt>(), 1152.0);
+// DynQuantity allows us to group b and f together by representing the underlying units at runtime.
+let conditions: &[DynQuantity<f64>] = &[b.into(), f.into()];
+
+// Calculate the losses for the specified conditions.
+assert_eq!(model.eval(conditions).get::<watt>(), 1152.0);
+
+// Without a magnetic field or frequency, the model assumes zero losses.
+assert_eq!(model.eval(&[]).get::<watt>(), 0.0);
 ```
 
-There are two ways to create a [`VarQuantity`], depending on whether the
-quantity is constant or depends on other quantities.
+A [`VarQuantity`] can be evaluated with a collection of environmental
+conditions. These conditions are not necessarily all used by the underlying
+model: each [`QuantityFunction`] implementation is responsible for extracting
+the quantities relevant to its physical relationship. Missing conditions can be
+interpreted according to the assumptions of the respective model. For example,
+the loss model from the previous example assumes a zero magnetic field if no
+magnetic field is supplied. 
 
-For a constant quantity, simply use [`VarQuantity::from`]:
-
-```rust,ignore
-let quantity = VarQuantity::from(constant);
-```
-
-This is the most common and efficient case. [`VarQuantity`] stores the
-quantity directly in its [`VarQuantity::Constant`] variant, avoiding dynamic
-dispatch when the value is accessed.
-
-For a variable quantity, implement [`QuantityFunction`] for a type describing
-the relation between the input and output quantities, and pass an instance of
-that type to [`VarQuantity::new`]:
-
-```rust,ignore
-let quantity = VarQuantity::new(function)?;
-```
-
-The workflow for defining a [`QuantityFunction`] is as follows:
-
-* Define the relation between input and output by implementing
-  [`QuantityFunction`] for the type representing the variable quantity
-  (`Model1` and `Model2` in the previous example). The implementor is
-  responsible for selecting the right quantities for its model from the given
-  `conditions` (for unary functions, the crate provides
-  [`filter_unary_function`] to simplify this) and for defining sensible
-  defaults if a needed quantity is not given. In the example above, the
-  default flux density and frequency are defined to zero. As explained in the
-  [serialization / deserialization](#serialization-and-deserialization)
-  section, the types must not be generic.
-
-* Create an instance of the function type and pass it to
-  [`VarQuantity::new`]. The function is automatically boxed as a trait object.
-  The trait object approach is necessary for two reasons:
-
-  1. To reduce generic bloat. For example, when a material type is defined
-     using multiple [`VarQuantity`]s for different properties, using concrete
-     function types could lead to dozens of generic parameters.
-  2. To allow for serialization and deserialization using the [typetag]
-     crate.
-
-  [`VarQuantity::new`] also checks that the output of the function can be
-  converted to the statically typed quantity `T` using
-  `TryFrom<DynQuantity<f64>>`. If the units do not match, the constructor
-  returns an error.
-
-* [`VarQuantity::get`] either returns the constant quantity directly or
-  evaluates the contained [`QuantityFunction`] by calling
-  [`QuantityFunction::call`]. The output is checked again to ensure that it
-  can be converted to the statically typed quantity `T`, as described in the
-  documentation of [`QuantityFunction`]. If it can't, `T::default` is returned
-  (usually a zero-value for physical quantities).
+This allows different models to be composed without requiring the caller
+to know their individual dependencies. The caller simply supplies the
+environmental conditions available to them, while each model handles
+the conditions relevant to its own implementation.
 
 # Predefined variable quantity models
 
-Some variable quantity models are very common and therefore provided with this
-crate. For example, model 1 from the introduction could also be realized
-using the [`Polynomial`] struct from the [`unary`] module:
+Some variable quantity models are common enough to be provided by this crate.
+For example, if we only needed an eddy-current loss model for a fixed
+frequency, we could use the [`Polynomial`] struct from the [`unary`] module
+instead of defining a custom model:
 
 ```rust
-use var_quantity::{unary::Polynomial, VarQuantity, QuantityFunction, DynQuantity, PredefUnit, Unit};
-use var_quantity::uom::si::{f64::{Power, MagneticFluxDensity, Frequency}, 
-    power::watt, magnetic_flux_density::tesla, frequency::hertz};
+use var_quantity::*;
+use var_quantity::unary::Polynomial;
+use var_quantity::uom::si::{f64::{Power, MagneticFluxDensity}, 
+    power::watt, magnetic_flux_density::tesla};
 
-// The input vector [a, b, c] is evaluated as ax² + bx + c. Here, b and c are
-// zero, but still need to match unit-wise:
-// [a] = W/T², [b] = W/T, [c] = W
-// The output unit is [c] and the input unit is calculated as [c/b].
-// [a] (and additional terms) can then be checked.
-let a = DynQuantity::new(1000.0, Unit::from(PredefUnit::Power) / Unit::from(PredefUnit::MagneticFluxDensity).powi(2));
+// The coefficients [a, b, c] define the polynomial ax² + bx + c.
+// Their units must be consistent with the input and output units:
+// [a] = W/T², [b] = W/T, [c] = W.
+//
+// The output unit is determined by [c], and the input unit by [c/b].
+// Polynomial::new checks that all coefficients have consistent units.
+let a = DynQuantity::new(800.0, Unit::from(PredefUnit::Power) / Unit::from(PredefUnit::MagneticFluxDensity).powi(2));
 let b = DynQuantity::new(0.0, Unit::from(PredefUnit::Power) / Unit::from(PredefUnit::MagneticFluxDensity));
 let c = DynQuantity::new(0.0, PredefUnit::Power);
-let polynomial = Polynomial::new(vec![a, b, c]).expect("terms are checked during construction");
+let polynomial = Polynomial::new(vec![a, b, c]).expect("output units of terms match");
 
-let model1: VarQuantity<Power> = VarQuantity::new(polynomial).expect("output unit is watt");
+// VarQuantity::new checks at runtime if the output unit of
+// Polynomial::eval matches the unit of Power
+let model: VarQuantity<Power> = VarQuantity::new(polynomial).expect("output unit is watt");
 
-// This function takes a variable quantity, the magnetic flux density and
-// the frequency and calculates the losses
-fn losses(model: &VarQuantity<Power>, b: MagneticFluxDensity, f: Frequency) -> Power {
-    return model.get(&[b.into(), f.into()]);
-}
-
-let b = MagneticFluxDensity::new::<tesla>(1.2);
-let f = Frequency::new::<hertz>(20.0);
-
-assert_eq!(losses(&model1, b, f).get::<watt>(), 1440.0);
+// Calculate the losses for a field with 1.2 T.
+assert_eq!(model.eval(&[MagneticFluxDensity::new::<tesla>(1.2).into()]).get::<watt>(), 1152.0);
 ```
 
 For a full list of available models, see the following modules:
@@ -187,5 +197,22 @@ For a full list of available models, see the following modules:
 
 The serde integration is gated behind the `serde` feature flag.
 
-All structs / enums in this crate implement serialization and deserialization.
-See the docstrings of the individual types for details.
+All public structs and enums in this crate implement serialization and
+deserialization. See the docstrings of the individual types for details.
+
+The `from_str` feature extends the `serde` feature by enabling deserialization
+of a constant [`VarQuantity`] directly from a string via the
+[`dyn_quantity`](https://crates.io/crates/dyn_quantity) crate. See
+[dyn_quantity::from_str_impl](https://docs.rs/dyn_quantity/latest/dyn_quantity/quantity/from_str_impl/index.html)
+for details.
+
+```rust
+use var_quantity::VarQuantity;
+use var_quantity::uom::si::electrical_resistivity::ohm_meter;
+use var_quantity::uom::si::f64::ElectricalResistivity;
+use yaml_serde;
+
+let q: VarQuantity<ElectricalResistivity> =
+    yaml_serde::from_str("1/(2.0e6) Ohm*m").unwrap();
+assert_eq!(q.eval(&[]).get::<ohm_meter>(), 0.5e-6)
+```

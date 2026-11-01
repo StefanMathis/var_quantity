@@ -42,26 +42,26 @@ impl Linear {
     ```
      */
     pub fn new(slope: DynQuantity<f64>, base_value: DynQuantity<f64>) -> Self {
-        return Self { slope, base_value };
+        Self { slope, base_value }
     }
 
     /**
     Returns the `base_value`.
     */
     pub fn base_value(&self) -> &DynQuantity<f64> {
-        return &self.base_value;
+        &self.base_value
     }
 
     /**
     Returns the `slope`.
     */
     pub fn slope(&self) -> &DynQuantity<f64> {
-        return &self.slope;
+        &self.slope
     }
 
     /**
     Returns the unit of the quantity which influences the variable quantity.
-    If none of the `conditions` in a [`QuantityFunction::call`]
+    If none of the `conditions` in a [`QuantityFunction::eval`]
     matches this item, then `x` is assumed to be zero and `base_value` is
     returned.
 
@@ -88,11 +88,11 @@ impl Linear {
     ```
     */
     pub fn influencing_factor_unit(&self) -> Unit {
-        return self.base_value.unit / self.slope.unit;
+        self.base_value.unit / self.slope.unit
     }
 
     /**
-    Returns the unit which will be returned from [`QuantityFunction::call`].
+    Returns the unit which will be returned from [`QuantityFunction::eval`].
 
     ```
     use std::str::FromStr;
@@ -104,18 +104,18 @@ impl Linear {
         DynQuantity::from_str("1 ohm").unwrap(),
     );
 
-    assert_eq!(lin.output_unit(), Unit::from(PredefUnit::ElectricResistance));
+    assert_eq!(lin.output_unit(), Unit::from(PredefUnit::ElectricalResistance));
     ```
      */
     pub fn output_unit(&self) -> Unit {
-        return self.base_value.unit;
+        self.base_value.unit
     }
 }
 
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl QuantityFunction for Linear {
     fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        return filter_unary_function(
+        filter_unary_function(
             conditions,
             self.influencing_factor_unit(),
             |input| {
@@ -127,34 +127,10 @@ impl QuantityFunction for Linear {
                 )
             },
             || self.base_value,
-        );
+        )
     }
 
     fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
-    }
-
-    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
-        self.slope = self.slope * value;
-        self.base_value = self.base_value * value;
-        true
-    }
-}
-
-// =============================================================================
-
-#[cfg(feature = "serde")]
-#[cfg_attr(feature = "serde", typetag::serde)]
-impl QuantityFunction for crate::ClampedQuantity<Linear> {
-    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        return self.call_clamped(conditions);
-    }
-
-    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
-        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
-    }
-
-    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
-        self.function.mul(value)
     }
 }

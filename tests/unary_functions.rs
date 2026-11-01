@@ -1,4 +1,4 @@
-use approx;
+use approxim::assert_abs_diff_eq;
 use dyn_quantity::{DynQuantity, PredefUnit, Unit};
 use indoc::indoc;
 use var_quantity::{QuantityFunction, unary::*};
@@ -18,8 +18,8 @@ fn test_exponential() {
         let fun = Exponential::new(vec![term0, term1]).unwrap();
 
         assert_eq!(fun.eval(&[0.0.into()]).value, -1.0);
-        approx::assert_abs_diff_eq!(fun.eval(&[1.0.into()]).value, 11.77811, epsilon = 0.0001);
-        approx::assert_abs_diff_eq!(fun.eval(&[2.0.into()]).value, 106.1963, epsilon = 0.0001);
+        assert_abs_diff_eq!(fun.eval(&[1.0.into()]).value, 11.77811, epsilon = 0.0001);
+        assert_abs_diff_eq!(fun.eval(&[2.0.into()]).value, 106.1963, epsilon = 0.0001);
     }
 
     // With units
@@ -41,13 +41,13 @@ fn test_exponential() {
                 .value,
             -1.0
         );
-        approx::assert_abs_diff_eq!(
+        assert_abs_diff_eq!(
             fun.eval(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
                 .value,
             11.77811,
             epsilon = 0.0001
         );
-        approx::assert_abs_diff_eq!(
+        assert_abs_diff_eq!(
             fun.eval(&[DynQuantity::new(2.0, PredefUnit::ElectricCurrent)])
                 .value,
             106.1963,
@@ -245,8 +245,8 @@ fn test_exponential_serde() {
         let fun: Exponential = yaml_serde::from_str(yaml).unwrap();
 
         assert_eq!(fun.eval(&[0.0.into()]).value, -1.0);
-        approx::assert_abs_diff_eq!(fun.eval(&[1.0.into()]).value, 11.77811, epsilon = 0.0001);
-        approx::assert_abs_diff_eq!(fun.eval(&[2.0.into()]).value, 106.1963, epsilon = 0.0001);
+        assert_abs_diff_eq!(fun.eval(&[1.0.into()]).value, 11.77811, epsilon = 0.0001);
+        assert_abs_diff_eq!(fun.eval(&[2.0.into()]).value, 106.1963, epsilon = 0.0001);
         assert_eq!(fun.eval(&[0.0.into()]).unit, PredefUnit::None.into());
 
         // Serialize again and deserialize, then run the tests again
@@ -254,8 +254,8 @@ fn test_exponential_serde() {
         let fun: Exponential = yaml_serde::from_str(&serialized).unwrap();
 
         assert_eq!(fun.eval(&[0.0.into()]).value, -1.0);
-        approx::assert_abs_diff_eq!(fun.eval(&[1.0.into()]).value, 11.77811, epsilon = 0.0001);
-        approx::assert_abs_diff_eq!(fun.eval(&[2.0.into()]).value, 106.1963, epsilon = 0.0001);
+        assert_abs_diff_eq!(fun.eval(&[1.0.into()]).value, 11.77811, epsilon = 0.0001);
+        assert_abs_diff_eq!(fun.eval(&[2.0.into()]).value, 106.1963, epsilon = 0.0001);
         assert_eq!(fun.eval(&[0.0.into()]).unit, PredefUnit::None.into());
     }
 
@@ -283,13 +283,13 @@ fn test_exponential_serde() {
                 .value,
             -1.0
         );
-        approx::assert_abs_diff_eq!(
+        assert_abs_diff_eq!(
             fun.eval(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
                 .value,
             11.77811,
             epsilon = 0.0001
         );
-        approx::assert_abs_diff_eq!(
+        assert_abs_diff_eq!(
             fun.eval(&[DynQuantity::new(2.0, PredefUnit::ElectricCurrent)])
                 .value,
             106.1963,
@@ -311,13 +311,13 @@ fn test_exponential_serde() {
                 .value,
             -1.0
         );
-        approx::assert_abs_diff_eq!(
+        assert_abs_diff_eq!(
             fun.eval(&[DynQuantity::new(1.0, PredefUnit::ElectricCurrent)])
                 .value,
             11.77811,
             epsilon = 0.0001
         );
-        approx::assert_abs_diff_eq!(
+        assert_abs_diff_eq!(
             fun.eval(&[DynQuantity::new(2.0, PredefUnit::ElectricCurrent)])
                 .value,
             106.1963,
@@ -415,7 +415,7 @@ fn test_first_order_taylor_serde() {
         slope: 0.393 % / K
         "};
         let fun: FirstOrderTaylor = yaml_serde::from_str(yaml).unwrap();
-        approx::assert_abs_diff_eq!(
+        assert_abs_diff_eq!(
             fun.eval(&[DynQuantity::new(20.0, PredefUnit::Temperature)])
                 .value,
             0.0,

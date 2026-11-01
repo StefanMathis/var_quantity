@@ -116,31 +116,31 @@ impl Exponential {
             if term1.exponent.unit != term2.exponent.unit {
                 return Some((term1.exponent.unit, term2.exponent.unit));
             }
-            return None;
+            None
         }) {
             return Err(UnitsNotEqual(first, second));
         }
         let output_unit = terms
-            .get(0)
+            .first()
             .map(|term| term.amplitude.unit)
-            .unwrap_or(Default::default());
-        return Ok(Self {
+            .unwrap_or_default();
+        Ok(Self {
             terms,
             output_unit,
             influencing_factor_unit,
-        });
+        })
     }
 
     /**
     Returns a slice of the underlying exponential terms.
     */
     pub fn terms(&self) -> &[ExpTerm] {
-        return &self.terms;
+        &self.terms
     }
 
     /**
     Returns the unit of the quantity which influences the variable quantity.
-    If none of the `conditions` in a [`QuantityFunction::call`]
+    If none of the `conditions` in a [`QuantityFunction::eval`]
     matches this item, then `x` is assumed to be zero and the sum of amplitudes
     is returned.
 
@@ -149,7 +149,7 @@ impl Exponential {
     ```
     use dyn_quantity::{DynQuantity, PredefUnit};
     use var_quantity::{QuantityFunction, unary::{ExpTerm, Exponential}};
-    use approx;
+    use approxim::assert_abs_diff_eq;
 
     let term1 = ExpTerm {
         amplitude: DynQuantity::new(1.0, PredefUnit::Power),
@@ -169,15 +169,15 @@ impl Exponential {
     let qt1 = DynQuantity::new(2.0, exp.influencing_factor_unit()); // <- Matches
     let qt2 = DynQuantity::new(-2.0, PredefUnit::Force);
 
-    approx::assert_abs_diff_eq!(exp.eval(&[qt1, qt2]).value, 809.576, epsilon = 1e-3);
+    assert_abs_diff_eq!(exp.eval(&[qt1, qt2]).value, 809.576, epsilon = 1e-3);
     ```
     */
     pub fn influencing_factor_unit(&self) -> Unit {
-        return self.influencing_factor_unit;
+        self.influencing_factor_unit
     }
 
     /**
-    Returns the unit which will be returned from [`QuantityFunction::call`].
+    Returns the unit which will be returned from [`QuantityFunction::eval`].
 
     ```
     use dyn_quantity::{DynQuantity, PredefUnit, Unit};
@@ -197,14 +197,14 @@ impl Exponential {
     ```
      */
     pub fn output_unit(&self) -> Unit {
-        return self.output_unit;
+        self.output_unit
     }
 }
 
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl QuantityFunction for Exponential {
     fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        return filter_unary_function(
+        filter_unary_function(
             conditions,
             self.influencing_factor_unit,
             |input| {
@@ -215,24 +215,17 @@ impl QuantityFunction for Exponential {
                     .iter()
                     .map(|t| t.amplitude.value * (t.exponent.value * input.value).exp())
                     .sum::<f64>();
-                return DynQuantity::new(sum, self.output_unit);
+                DynQuantity::new(sum, self.output_unit)
             },
             || {
                 let sum = self.terms.iter().map(|t| t.amplitude.value).sum::<f64>();
-                return DynQuantity::new(sum, self.output_unit);
+                DynQuantity::new(sum, self.output_unit)
             },
-        );
+        )
     }
 
     fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
-    }
-
-    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
-        self.terms
-            .iter_mut()
-            .for_each(|t| t.amplitude = t.amplitude * value);
-        true
     }
 }
 
@@ -255,23 +248,5 @@ mod serde_impl {
             let alias = ExponentialAlias::deserialize(deserializer)?;
             Self::new(alias.terms).map_err(serde::de::Error::custom)
         }
-    }
-}
-
-// =============================================================================
-
-#[cfg(feature = "serde")]
-#[cfg_attr(feature = "serde", typetag::serde)]
-impl QuantityFunction for crate::ClampedQuantity<Exponential> {
-    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        return self.call_clamped(conditions);
-    }
-
-    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
-        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
-    }
-
-    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
-        self.function.mul(value)
     }
 }

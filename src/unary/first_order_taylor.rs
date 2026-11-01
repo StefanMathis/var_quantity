@@ -90,13 +90,13 @@ impl FirstOrderTaylor {
         let expected = Unit::default();
         let found = expansion_point.unit * slope.unit;
         if expected == found {
-            return Ok(Self {
+            Ok(Self {
                 base_value,
                 slope,
                 expansion_point,
-            });
+            })
         } else {
-            return Err(UnitsNotEqual(expected, found));
+            Err(UnitsNotEqual(expected, found))
         }
     }
 
@@ -104,28 +104,27 @@ impl FirstOrderTaylor {
     Returns the `base_value`.
     */
     pub fn base_value(&self) -> &DynQuantity<f64> {
-        return &self.base_value;
+        &self.base_value
     }
 
     /**
     Returns the `expansion_point`.
     */
     pub fn expansion_point(&self) -> &DynQuantity<f64> {
-        return &self.expansion_point;
+        &self.expansion_point
     }
 
     /**
     Returns the `slope`.
     */
     pub fn slope(&self) -> &DynQuantity<f64> {
-        return &self.slope;
+        &self.slope
     }
 
     /**
     Returns the unit of the quantity which influences the variable quantity.
-    If none of the `conditions` in a [`QuantityFunction::call`]
-    matches this item, then `x` is assumed to be zero and the base value is
-    returned.
+    If none of the `conditions` in a [`QuantityFunction::eval`] matches this
+    item, then `x` is assumed to be zero and the base value is returned.
 
     # Examples
 
@@ -151,11 +150,11 @@ impl FirstOrderTaylor {
     ```
     */
     pub fn influencing_factor_unit(&self) -> Unit {
-        return self.expansion_point.unit;
+        self.expansion_point.unit
     }
 
     /**
-    Returns the unit which will be returned from [`QuantityFunction::call`].
+    Returns the unit which will be returned from [`QuantityFunction::eval`].
 
     ```
     use std::str::FromStr;
@@ -169,18 +168,18 @@ impl FirstOrderTaylor {
         DynQuantity::from_str("30 K").unwrap()
     ).expect("matching units");
 
-    assert_eq!(fot.output_unit(), Unit::from(PredefUnit::ElectricResistance));
+    assert_eq!(fot.output_unit(), Unit::from(PredefUnit::ElectricalResistance));
     ```
      */
     pub fn output_unit(&self) -> Unit {
-        return self.base_value.unit;
+        self.base_value.unit
     }
 }
 
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl QuantityFunction for FirstOrderTaylor {
     fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        return filter_unary_function(
+        filter_unary_function(
             conditions,
             self.expansion_point.unit,
             |input| {
@@ -190,16 +189,11 @@ impl QuantityFunction for FirstOrderTaylor {
                     * (1.0 + self.slope.value * (input.value - self.expansion_point.value))
             },
             || self.base_value,
-        );
+        )
     }
 
     fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
         (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
-    }
-
-    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
-        self.base_value *= value;
-        true
     }
 }
 
@@ -225,23 +219,5 @@ mod serde_impl {
             Self::new(alias.base_value, alias.slope, alias.expansion_point)
                 .map_err(serde::de::Error::custom)
         }
-    }
-}
-
-// =============================================================================
-
-#[cfg(feature = "serde")]
-#[cfg_attr(feature = "serde", typetag::serde)]
-impl QuantityFunction for crate::ClampedQuantity<FirstOrderTaylor> {
-    fn eval(&self, conditions: &[DynQuantity<f64>]) -> DynQuantity<f64> {
-        return self.call_clamped(conditions);
-    }
-
-    fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
-        (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
-    }
-
-    fn mul(&mut self, value: DynQuantity<f64>) -> bool {
-        self.function.mul(value)
     }
 }

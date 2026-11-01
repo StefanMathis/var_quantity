@@ -13,8 +13,8 @@ fn test_var_quantity() {
         ThermodynamicTemperature::new::<degree_celsius>(2.0).into(),
     ];
 
-    let var_quantity = VarQuantity::Constant(Power::new::<watt>(1.0));
-    assert_eq!(var_quantity.get(conditions.as_slice()).get::<watt>(), 1.0);
+    let var_quantity = VarQuantity::from(Power::new::<watt>(1.0));
+    assert_eq!(var_quantity.eval(conditions.as_slice()).get::<watt>(), 1.0);
 }
 
 #[test]
@@ -63,13 +63,10 @@ fn test_multiply_by_current() {
             .is_some()
     );
 
-    let var_quantity: VarQuantity<Power> = VarQuantity::Function(wrapper);
-    assert_eq!(var_quantity.get(conditions.as_slice()).get::<watt>(), 1.0);
-
-    // Test cast to dyn Any
-    let function = var_quantity.function().unwrap();
-    let any_fn = function as &dyn std::any::Any;
-    assert!(any_fn.downcast_ref::<MultiplyIfCurrent>().is_some());
+    let var_quantity: VarQuantity<Power> =
+        VarQuantity::new(MultiplyIfCurrent(ElectricPotential::new::<volt>(0.5)))
+            .expect("evaluates to power");
+    assert_eq!(var_quantity.eval(conditions.as_slice()).get::<watt>(), 1.0);
 }
 
 #[test]
@@ -137,7 +134,7 @@ fn test_readme_example() {
     // This function takes a variable quantity, the magnetic flux density and
     // the frequency and calculates the losses
     fn losses(model: &VarQuantity<Power>, b: MagneticFluxDensity, f: Frequency) -> Power {
-        return model.get(&[b.into(), f.into()]);
+        return model.eval(&[b.into(), f.into()]);
     }
 
     let b = MagneticFluxDensity::new::<tesla>(1.2);
