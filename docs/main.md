@@ -48,14 +48,10 @@ let r2: VarQuantity<ElectricalResistance> = VarQuantity::new(
 // to participate in the expression.
 let u: VarQuantity<ElectricPotential> = VarQuantity::from(ElectricPotential::new::<volt>(10.0));
 
-// Combine the two independently defined resistance models in series.
-// The resulting expression retains the temperature dependencies of both.
-let r_total = r1 + r2;
-
-// Build the current equation i(T) = u / r_total.
+// Build the current equation i(T) = u / (r1 + r2).
 // The dimensional equation ElectricCurrent = ElectricPotential / ElectricalResistance
 // is checked at compile time.
-let i: VarQuantity<ElectricCurrent> = u / r_total;
+let i: VarQuantity<ElectricCurrent> = u / (r1 + r2);
 // let l: VarQuantity<Length> = u / (r1 + r2); // This does not compile due to the dimensional analysis
 
 // Evaluate the composed expression for different ambient temperatures.
@@ -66,7 +62,39 @@ let hot: &[DynQuantity<f64>] = &[ThermodynamicTemperature::new::<degree_celsius>
 assert_abs_diff_eq!(i.eval(hot).get::<ampere>(), 2.380, epsilon = 1e-3);
 ```
 
-As demonstrated by the example, this crate builds on
+If a model wrapped by [`VarQuantity`] is large, avoiding unnecessary cloning can
+be beneficial, especially when the same quantity is reused in multiple
+expressions.
+
+Therefore, [`VarQuantity`] supports references as operands in arithmetic
+operations. This allows you to reuse existing quantities without consuming them:
+
+```rust
+use approxim::assert_abs_diff_eq;
+
+use var_quantity::*;
+
+// Usage of constants for demonstration purposes - this works with any VarQuantity!
+let rhs = VarQuantity::from(3.0);
+
+let expr = VarQuantity::from(3.0) + &rhs;
+assert_eq!(expr.eval(&[]), 6.0);
+
+let expr = VarQuantity::from(3.0) - &rhs;
+assert_eq!(expr.eval(&[]), 0.0);
+
+let expr = VarQuantity::from(3.0) * &rhs;
+assert_eq!(expr.eval(&[]), 9.0);
+
+let expr = VarQuantity::from(3.0) / &rhs;
+assert_eq!(expr.eval(&[]), 1.0);
+```
+
+When composing expressions, equivalent quantity functions are automatically
+deduplicated. This avoids redundant cloning of function instances and ensures
+that each equivalent function is evaluated at most once per evaluation.
+
+As demonstrated by the examples, this crate builds on
 [`uom`](https://crates.io/crates/uom) and
 [`dyn_quantity`](https://crates.io/crates/dyn_quantity).
 The former ensures compile-time dimensional type safety, while the latter

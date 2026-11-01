@@ -15,6 +15,7 @@ physical quantities whose values depend on other quantities.
 #![doc = include_str!("../docs/main.md")]
 #![deny(missing_docs)]
 
+use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -22,6 +23,8 @@ use std::ops::{Add, Div, Mul, Sub};
 #[doc(hidden)]
 pub use dyn_quantity::*;
 use uom::typenum::{Integer, Prod};
+
+use smallvec::{SmallVec, smallvec};
 
 use num::Complex;
 
@@ -549,14 +552,14 @@ fn analyse_tokens(tokens: &[RpnToken]) -> Result<TokenAnalysis, EvalError> {
 /// expression. This invariant allows the evaluator to resolve function
 /// references using the cache index assigned when the original operand was
 /// encountered, without requiring an additional lookup table.
-fn deduplicate_fn_tokens(tokens: &[RpnToken], token: &mut RpnToken) {
-    if let RpnToken::OperandFn(_) = token {
+fn deduplicate_fn_tokens<'a>(tokens: &[RpnToken], token: Cow<'a, RpnToken>) -> RpnToken {
+    if let RpnToken::OperandFn(_) = token.as_ref() {
         let mut function_count = 0;
 
         for t in tokens.iter() {
-            if t == token {
-                *token = RpnToken::OperandFnRef(function_count);
-                return;
+            if t == token.as_ref() {
+                let token = RpnToken::OperandFnRef(function_count);
+                return token;
             }
 
             if matches!(t, RpnToken::OperandFn(_)) {
@@ -564,6 +567,7 @@ fn deduplicate_fn_tokens(tokens: &[RpnToken], token: &mut RpnToken) {
             }
         }
     }
+    return token.into_owned();
 }
 
 /**
@@ -708,7 +712,8 @@ assert_eq!(from_f64.eval(&[]).get::<ohm>(), 5000.0);
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct VarQuantity<T> {
-    tokens: Vec<RpnToken>,
+    /// Inline capacity of 3 to avoid heap allocation for a simple binary expression like `a + b`.
+    tokens: SmallVec<[RpnToken; 3]>,
     #[cfg_attr(feature = "serde", serde(skip))]
     max_stack_depth: usize,
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -762,7 +767,7 @@ impl<T: QuantityF64> VarQuantity<T> {
         Ok(Self {
             max_stack_depth: 1,
             function_count: 1,
-            tokens: vec![boxed.into()],
+            tokens: smallvec![boxed.into()],
             _marker: PhantomData,
         })
     }
@@ -831,10 +836,19 @@ impl<T: QuantityF64> VarQuantity<T> {
     assert!(VarQuantity::<f64>::from_tokens(invalid_sequence).is_err());
     ```
     */
-    pub fn from_tokens(mut tokens: Vec<RpnToken>) -> Result<Self, EvalError> {
+    pub fn from_tokens<I>(tokens: I) -> Result<Self, EvalError>
+    where
+        I: IntoIterator<Item = RpnToken>,
+    {
+        let mut tokens: SmallVec<[RpnToken; 3]> = tokens.into_iter().collect();
+
         for i in 0..tokens.len() {
             let (previous, current) = tokens.split_at_mut(i);
-            deduplicate_fn_tokens(previous, &mut current[0]);
+
+            // Temporarily replace the current token with a dummy value to avoid borrowing issues.
+            // The dummy is overwritten immediately after deduplocation anyway.
+            let token = std::mem::replace(&mut current[0], RpnToken::Add);
+            tokens[i] = deduplicate_fn_tokens(previous, Cow::Owned(token));
         }
 
         // Preanalyse the token stream to extract information for the storage
@@ -1066,8 +1080,8 @@ impl<T: QuantityF64> VarQuantity<T> {
         precalculated by [`analyse_tokens`], the required storage size is known
         beforehand and the vector only needs to be allocated once.
         */
-        let mut storage: smallvec::SmallVec<[Option<DynQuantity<f64>>; 16]> =
-            smallvec::smallvec![None; self.function_count + self.max_stack_depth];
+        let mut storage: SmallVec<[Option<DynQuantity<f64>>; 16]> =
+            smallvec![None; self.function_count + self.max_stack_depth];
 
         // Number of items on the stack. Add the function count to get the storage
         // index of the current stack item: storage[function_count + depth] is
@@ -1408,7 +1422,7 @@ impl<T: QuantityF64> From<T> for VarQuantity<T> {
         Self {
             max_stack_depth: 1,
             function_count: 0,
-            tokens: vec![RpnToken::OperandConst(value.into())],
+            tokens: smallvec![RpnToken::OperandConst(value.into())],
             _marker: PhantomData,
         }
     }
@@ -1424,9 +1438,32 @@ where
         let mut tokens = self.tokens;
 
         tokens.reserve(rhs.tokens.len());
-        for mut t in rhs.tokens {
-            deduplicate_fn_tokens(tokens.as_slice(), &mut t);
-            tokens.push(t);
+        for t in rhs.tokens {
+            tokens.push(deduplicate_fn_tokens(tokens.as_slice(), Cow::Owned(t)));
+        }
+
+        tokens.push(RpnToken::Add);
+        Self::Output {
+            tokens,
+            max_stack_depth: self.max_stack_depth + rhs.max_stack_depth,
+            function_count: self.function_count + rhs.function_count,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T> Add<&VarQuantity<T>> for VarQuantity<T>
+where
+    T: QuantityF64,
+{
+    type Output = VarQuantity<T>;
+
+    fn add(self, rhs: &VarQuantity<T>) -> Self::Output {
+        let mut tokens = self.tokens;
+
+        tokens.reserve(rhs.tokens.len());
+        for t in rhs.tokens.iter() {
+            tokens.push(deduplicate_fn_tokens(tokens.as_slice(), Cow::Borrowed(t)));
         }
 
         tokens.push(RpnToken::Add);
@@ -1449,9 +1486,32 @@ where
         let mut tokens = self.tokens;
 
         tokens.reserve(rhs.tokens.len());
-        for mut t in rhs.tokens {
-            deduplicate_fn_tokens(tokens.as_slice(), &mut t);
-            tokens.push(t);
+        for t in rhs.tokens {
+            tokens.push(deduplicate_fn_tokens(tokens.as_slice(), Cow::Owned(t)));
+        }
+
+        tokens.push(RpnToken::Sub);
+        Self::Output {
+            tokens,
+            max_stack_depth: self.max_stack_depth + rhs.max_stack_depth,
+            function_count: self.function_count + rhs.function_count,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T> Sub<&VarQuantity<T>> for VarQuantity<T>
+where
+    T: QuantityF64,
+{
+    type Output = VarQuantity<T>;
+
+    fn sub(self, rhs: &VarQuantity<T>) -> Self::Output {
+        let mut tokens = self.tokens;
+
+        tokens.reserve(rhs.tokens.len());
+        for t in rhs.tokens.iter() {
+            tokens.push(deduplicate_fn_tokens(tokens.as_slice(), Cow::Borrowed(t)));
         }
 
         tokens.push(RpnToken::Sub);
@@ -1476,9 +1536,34 @@ where
         let mut tokens = self.tokens;
 
         tokens.reserve(rhs.tokens.len());
-        for mut t in rhs.tokens {
-            deduplicate_fn_tokens(tokens.as_slice(), &mut t);
-            tokens.push(t);
+        for t in rhs.tokens {
+            tokens.push(deduplicate_fn_tokens(tokens.as_slice(), Cow::Owned(t)));
+        }
+
+        tokens.push(RpnToken::Mul);
+        Self::Output {
+            tokens,
+            max_stack_depth: self.max_stack_depth + rhs.max_stack_depth,
+            function_count: self.function_count + rhs.function_count,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<Q, T, U> Mul<&VarQuantity<Q>> for VarQuantity<T>
+where
+    T: QuantityF64 + Mul<Q, Output = U>,
+    Q: QuantityF64,
+    U: QuantityF64,
+{
+    type Output = VarQuantity<U>;
+
+    fn mul(self, rhs: &VarQuantity<Q>) -> Self::Output {
+        let mut tokens = self.tokens;
+
+        tokens.reserve(rhs.tokens.len());
+        for t in rhs.tokens.iter() {
+            tokens.push(deduplicate_fn_tokens(tokens.as_slice(), Cow::Borrowed(t)));
         }
 
         tokens.push(RpnToken::Mul);
@@ -1503,9 +1588,8 @@ where
         let mut tokens = self.tokens;
 
         tokens.reserve(rhs.tokens.len());
-        for mut t in rhs.tokens {
-            deduplicate_fn_tokens(tokens.as_slice(), &mut t);
-            tokens.push(t);
+        for t in rhs.tokens {
+            tokens.push(deduplicate_fn_tokens(tokens.as_slice(), Cow::Owned(t)));
         }
 
         tokens.push(RpnToken::Div);
@@ -1515,6 +1599,41 @@ where
             function_count: self.function_count + rhs.function_count,
             _marker: PhantomData,
         }
+    }
+}
+
+impl<Q, T, U> Div<&VarQuantity<Q>> for VarQuantity<T>
+where
+    T: QuantityF64 + Div<Q, Output = U>,
+    Q: QuantityF64,
+    U: QuantityF64,
+{
+    type Output = VarQuantity<U>;
+
+    fn div(self, rhs: &VarQuantity<Q>) -> Self::Output {
+        let mut tokens = self.tokens;
+
+        tokens.reserve(rhs.tokens.len());
+        for t in rhs.tokens.iter() {
+            tokens.push(deduplicate_fn_tokens(tokens.as_slice(), Cow::Borrowed(t)));
+        }
+
+        tokens.push(RpnToken::Div);
+        Self::Output {
+            tokens,
+            max_stack_depth: self.max_stack_depth + rhs.max_stack_depth,
+            function_count: self.function_count + rhs.function_count,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T: QuantityF64> std::iter::Sum for VarQuantity<T> {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = Self>,
+    {
+        iter.reduce(Add::add).unwrap_or_default()
     }
 }
 

@@ -142,6 +142,89 @@ fn test_clamp() {
 }
 
 #[test]
+fn test_sum() {
+    let quantites = vec![
+        VarQuantity::from(Length::new::<meter>(1.0)),
+        VarQuantity::from(Length::new::<meter>(2.0)),
+        VarQuantity::from(Length::new::<meter>(3.0)),
+    ];
+    let sum: VarQuantity<Length> = quantites.into_iter().sum();
+    assert_eq!(sum.eval(&[]).get::<meter>(), 6.0);
+}
+
+#[test]
+fn test_references_with_dedup() {
+    {
+        let first = VarQuantity::from(Length::new::<meter>(1.0));
+        let second = VarQuantity::from(Length::new::<meter>(2.0));
+        let sum: VarQuantity<Length> = first + &second + &second;
+        assert_eq!(sum.eval(&[]).get::<meter>(), 5.0);
+    }
+    {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        // This function does not want to get cloned and only evaluated twice
+        #[derive(Serialize, Deserialize, Default)]
+        struct LazyDontClone {
+            eval_counter: AtomicUsize,
+        }
+
+        impl Clone for LazyDontClone {
+            fn clone(&self) -> Self {
+                panic!("I really don't want to be cloned!")
+            }
+        }
+
+        impl PartialEq for LazyDontClone {
+            fn eq(&self, other: &Self) -> bool {
+                self.eval_counter.load(Ordering::Relaxed)
+                    == other.eval_counter.load(Ordering::Relaxed)
+            }
+        }
+
+        #[typetag::serde]
+        impl QuantityFunction for LazyDontClone {
+            fn eval(&self, _: &[DynQuantity<f64>]) -> DynQuantity<f64> {
+                // Function is evaluated once when building the VarQuantity
+                let loaded = self.eval_counter.load(Ordering::Relaxed);
+                if loaded > 1 {
+                    panic!("Function has been evaluated already!")
+                }
+                self.eval_counter.store(loaded + 1, Ordering::Relaxed);
+                return DynQuantity::new(2.0, PredefUnit::Length);
+            }
+
+            fn dyn_eq(&self, other: &dyn QuantityFunction) -> bool {
+                (other as &dyn std::any::Any).downcast_ref::<Self>() == Some(self)
+            }
+        }
+
+        let leave_me_alone: VarQuantity<Length> =
+            VarQuantity::new(LazyDontClone::default()).unwrap();
+
+        // Addition
+        let seed: VarQuantity<Length> = VarQuantity::new(LazyDontClone::default()).unwrap();
+        let expr: VarQuantity<Length> = seed + &leave_me_alone + &leave_me_alone;
+        assert_eq!(expr.eval(&[]).get::<meter>(), 6.0);
+
+        // Subtraction
+        let seed: VarQuantity<Length> = VarQuantity::new(LazyDontClone::default()).unwrap();
+        let expr: VarQuantity<Length> = seed - &leave_me_alone - &leave_me_alone;
+        assert_eq!(expr.eval(&[]).get::<meter>(), -2.0);
+
+        // Multiplication
+        let seed: VarQuantity<Length> = VarQuantity::new(LazyDontClone::default()).unwrap();
+        let expr: VarQuantity<Area> = seed * &leave_me_alone;
+        assert_eq!(expr.eval(&[]).get::<square_meter>(), 4.0);
+
+        // Division
+        let seed: VarQuantity<Length> = VarQuantity::new(LazyDontClone::default()).unwrap();
+        let expr: VarQuantity<Ratio> = seed / &leave_me_alone;
+        assert_eq!(expr.eval(&[]).get::<ratio>(), 1.0);
+    }
+}
+
+#[test]
 fn test_dedup_composed() {
     // Apply the same function multiple times and dedup it in the tokens
     let fun: VarQuantity<Length> =
@@ -315,7 +398,6 @@ fn test_invalid_function_reference() {
     ];
 
     let result = VarQuantity::<Length>::from_tokens(tokens);
-    println!("{:?}", result);
     assert!(matches!(
         result,
         Err(EvalError::InvalidFunctionReference {
